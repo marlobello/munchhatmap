@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MunchHat Map 🎩</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: sans-serif; }
+    #map { width: 100vw; height: 100vh; }
+
+    #header {
+      position: absolute;
+      top: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 10;
+      background: rgba(255,255,255,0.95);
+      border-radius: 8px;
+      padding: 10px 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    #header h1 { font-size: 1.1rem; white-space: nowrap; }
+    #pin-count { font-size: 0.85rem; color: #666; }
+
+    .info-window {
+      max-width: 280px;
+      font-family: sans-serif;
+    }
+    .info-window img {
+      width: 100%;
+      max-height: 200px;
+      object-fit: cover;
+      border-radius: 4px;
+      margin-bottom: 8px;
+      display: block;
+    }
+    .info-window .meta {
+      font-size: 0.8rem;
+      color: #555;
+      margin-top: 4px;
+    }
+    .info-window .caption {
+      font-size: 0.9rem;
+      margin: 6px 0;
+      word-break: break-word;
+    }
+    .info-window a {
+      display: inline-block;
+      margin-top: 6px;
+      font-size: 0.8rem;
+      color: #5865F2;
+      text-decoration: none;
+    }
+    .info-window a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <div id="header">
+    <h1>🎩 MunchHat Map</h1>
+    <span id="pin-count">Loading pins…</span>
+  </div>
+  <div id="map"></div>
+
+  <script type="module" src="js/main.js"></script>
+
+  <!--
+    Google Maps JS API — replace YOUR_GOOGLE_MAPS_API_KEY at build/deploy time
+    or inject via the static web app build pipeline.
+    The key is restricted to HTTP referrers in the Google Cloud Console.
+  -->
+  <script
+    async
+    defer
+    src="https://maps.googleapis.com/maps/api/js?key=__GOOGLE_MAPS_API_KEY__&callback=initMap&loading=async"
+  ></script>
+</body>
+</html>

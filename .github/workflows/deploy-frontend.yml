@@ -1,0 +1,36 @@
+name: Deploy Frontend (Static Web App)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'frontend/**'
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Inject the Google Maps API key into index.html at deploy time.
+      # The key is restricted to the Static Web App domain in the Google Cloud Console.
+      - name: Inject Google Maps API key
+        run: |
+          sed -i "s/__GOOGLE_MAPS_API_KEY__/${{ secrets.GOOGLE_MAPS_API_KEY }}/g" \
+            frontend/index.html
+
+      - name: Deploy to Azure Static Web Apps
+        uses: azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          action: upload
+          app_location: /frontend
+          output_location: ''       # No build step; files are served directly
+          skip_app_build: true

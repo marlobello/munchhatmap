@@ -1,0 +1,17 @@
+{
+  "navigationFallback": {
+    "rewrite": "/index.html",
+    "exclude": ["/api/*", "/js/*"]
+  },
+  "routes": [
+    {
+      "route": "/api/*",
+      "allowedRoles": ["anonymous"]
+    }
+  ],
+  "globalHeaders": {
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "SAMEORIGIN",
+    "Content-Security-Policy": "default-src 'self'; script-src 'self' https://maps.googleapis.com https://maps.gstatic.com; img-src 'self' https://cdn.discordapp.com https://media.discordapp.net https://maps.googleapis.com https://maps.gstatic.com data:; style-src 'self' 'unsafe-inline'; connect-src 'self' https://maps.googleapis.com"
+  }
+}

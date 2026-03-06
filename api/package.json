@@ -1,0 +1,23 @@
+{
+  "name": "munchhatmap-api",
+  "version": "1.0.0",
+  "description": "Azure Functions API for MunchHat Map — serves pin data to the frontend.",
+  "main": "dist/functions/*.js",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "start": "func start",
+    "dev": "tsc --watch & func start"
+  },
+  "dependencies": {
+    "@azure/cosmos": "^4.1.0",
+    "@azure/functions": "^4.5.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.7.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
