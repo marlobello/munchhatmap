@@ -3,7 +3,7 @@
 // is passed to the GitHub Actions workflow as a secret.
 
 param name string
-param location string = 'eastus2' // Static Web Apps has limited region support; eastus2 is available
+param location string = 'centralus'
 param tags object = {}
 param repositoryUrl string
 param repositoryBranch string = 'main'

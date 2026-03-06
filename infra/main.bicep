@@ -13,7 +13,7 @@ targetScope = 'resourceGroup'
 param env string = 'prod'
 
 @description('Azure region for all resources')
-param location string = 'eastus'
+param location string = 'centralus'
 
 @description('GitHub repository URL (e.g. https://github.com/OWNER/munchhatmap)')
 param repositoryUrl string
