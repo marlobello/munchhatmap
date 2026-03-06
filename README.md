@@ -1,6 +1,6 @@
 # 🎩 MunchHat Map
 
-A Discord bot that pins geo-tagged MunchHat photos on a live Google Maps page. Post a photo with `#munchhat` or `#munchhatchronicles` and it appears on the map.
+A Discord bot that pins geo-tagged MunchHat photos on a live map. Post a photo with `#munchhat` or `#munchhatchronicles` and it appears on the map.
 
 ## Architecture
 
@@ -8,7 +8,7 @@ A Discord bot that pins geo-tagged MunchHat photos on a live Google Maps page. P
 |---|---|---|
 | Discord bot (persistent Gateway) | Azure Container Apps (Consumption) | ~$10–15/month |
 | Map API (`/api/getPins`) | Azure Functions (Consumption) | Free tier |
-| Map frontend | Azure Static Web Apps (Free) | Free |
+| Map frontend (Leaflet + OpenStreetMap) | Azure Static Web Apps (Free) | Free |
 | Database | Azure Cosmos DB (Free tier) | Free |
 | Secrets | Azure Key Vault (Standard) | ~$0.03/month |
 
@@ -49,14 +49,7 @@ A Discord bot that pins geo-tagged MunchHat photos on a live Google Maps page. P
    - Bot Permissions: `View Channels`, `Read Message History`, `Send Messages`
    - Copy the generated URL and invite the bot to your server.
 
-### 2. Google Maps API Key
-
-1. Go to [Google Cloud Console](https://console.cloud.google.com/) → **APIs & Services** → **Credentials**.
-2. **Create Credentials → API Key**.
-3. Restrict it to **HTTP referrers** and add your Static Web App domain.
-4. Enable the **Maps JavaScript API** for your project.
-
-### 3. Azure Infrastructure
+### 2. Azure Infrastructure
 
 **Prerequisites:** Azure CLI, Bicep CLI, an Azure subscription.
 
@@ -99,7 +92,6 @@ Add the following secrets to your GitHub repository (**Settings → Secrets → 
 | `AZURE_TENANT_ID` | Azure AD tenant ID |
 | `AZURE_SUBSCRIPTION_ID` | Azure subscription ID |
 | `AZURE_STATIC_WEB_APPS_API_TOKEN` | Output from Bicep deployment: `staticWebAppDeploymentToken` |
-| `GOOGLE_MAPS_API_KEY` | Your Google Maps JavaScript API key |
 
 **Federated credential setup** (for the OIDC `azure/login` action):
 

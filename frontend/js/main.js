@@ -1,6 +1,6 @@
 /**
  * main.js — entry point for MunchHat Map frontend.
- * Fetches pins from the API and exposes initMap() for the Google Maps callback.
+ * Initialises a Leaflet map, fetches pins from the API, and renders them.
  */
 
 import { renderPins } from './map.js';
@@ -13,23 +13,21 @@ async function fetchPins() {
   return response.json();
 }
 
-// Google Maps calls this once the API script has loaded.
-window.initMap = async function initMap() {
-  const mapEl = document.getElementById('map');
-  const countEl = document.getElementById('pin-count');
+const map = L.map('map').setView([20, 0], 2);
 
-  const map = new google.maps.Map(mapEl, {
-    center: { lat: 20, lng: 0 },
-    zoom: 2,
-    mapTypeId: 'roadmap',
-  });
+L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  maxZoom: 19,
+  attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+}).addTo(map);
 
-  try {
-    const pins = await fetchPins();
+const countEl = document.getElementById('pin-count');
+
+fetchPins()
+  .then((pins) => {
     renderPins(map, pins);
     countEl.textContent = `${pins.length} pin${pins.length !== 1 ? 's' : ''}`;
-  } catch (err) {
+  })
+  .catch((err) => {
     console.error('Failed to load pins:', err);
     countEl.textContent = 'Failed to load pins';
-  }
-};
+  });

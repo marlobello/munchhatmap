@@ -18,13 +18,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Inject the Google Maps API key into index.html at deploy time.
-      # The key is restricted to the Static Web App domain in the Google Cloud Console.
-      - name: Inject Google Maps API key
-        run: |
-          sed -i "s/__GOOGLE_MAPS_API_KEY__/${{ secrets.GOOGLE_MAPS_API_KEY }}/g" \
-            frontend/index.html
-
       - name: Deploy to Azure Static Web Apps
         uses: azure/static-web-apps-deploy@v1
         with:
