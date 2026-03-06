@@ -40,5 +40,27 @@ resource readerRoleAssignments 'Microsoft.Authorization/roleAssignments@2022-04-
   }
 ]
 
+// Placeholder secrets — overwrite with real values using:
+//   az keyvault secret set --vault-name <name> --name <secret-name> --value "<real-value>"
+// Container Apps resolves these at provision time, so they must exist before the app deploys.
+
+resource secretDiscordToken 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
+  parent: keyVault
+  name: 'discord-bot-token'
+  properties: { value: 'PLACEHOLDER' }
+}
+
+resource secretCosmosEndpoint 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
+  parent: keyVault
+  name: 'cosmos-db-endpoint'
+  properties: { value: 'PLACEHOLDER' }
+}
+
+resource secretCosmosKey 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
+  parent: keyVault
+  name: 'cosmos-db-key'
+  properties: { value: 'PLACEHOLDER' }
+}
+
 output keyVaultName string = keyVault.name
 output keyVaultUri string = keyVault.properties.vaultUri

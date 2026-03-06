@@ -8,7 +8,9 @@ param logAnalyticsWorkspaceCustomerId string
 param logAnalyticsWorkspaceKey string
 
 // Container image — pushed to GitHub Container Registry by CI/CD
-param containerImage string = 'ghcr.io/OWNER/munchhatmap-bot:latest'
+// Placeholder image used at initial provisioning — the deploy-bot.yml workflow
+// will update this to ghcr.io/marlobello/munchhatmap-bot:latest on first push.
+param containerImage string = 'mcr.microsoft.com/azuredocs/containerapps-helloworld:latest'
 
 // Secret names in Key Vault — passed as environment variables via secretRef
 param keyVaultUri string
