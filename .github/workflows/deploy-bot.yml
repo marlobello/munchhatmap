@@ -9,7 +9,8 @@ on:
 
 permissions:
   contents: read
-  packages: write  # For pushing to GitHub Container Registry
+  packages: write   # Push to GitHub Container Registry
+  id-token: write   # Azure OIDC login in deploy job
 
 env:
   REGISTRY: ghcr.io
