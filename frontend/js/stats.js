@@ -44,26 +44,27 @@ export function initStats() {
   const panel = document.getElementById('stats-panel');
   const closeBtn = document.getElementById('stats-close');
   const content = document.getElementById('stats-content');
-  let loaded = false;
+
+  function loadStats() {
+    content.innerHTML = '<p class="stats-empty">Loading…</p>';
+    fetch(`${API_BASE}/getStats`)
+      .then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      })
+      .then((stats) => {
+        content.innerHTML = renderStats(stats);
+      })
+      .catch((err) => {
+        content.innerHTML = `<p class="stats-empty">Failed to load stats</p>`;
+        console.error('Stats error:', err);
+      });
+  }
 
   function openPanel() {
     panel.classList.add('open');
     toggleBtn.setAttribute('aria-expanded', 'true');
-    if (!loaded) {
-      loaded = true;
-      fetch(`${API_BASE}/getStats`)
-        .then((r) => {
-          if (!r.ok) throw new Error(`HTTP ${r.status}`);
-          return r.json();
-        })
-        .then((stats) => {
-          content.innerHTML = renderStats(stats);
-        })
-        .catch((err) => {
-          content.innerHTML = `<p class="stats-empty">Failed to load stats</p>`;
-          console.error('Stats error:', err);
-        });
-    }
+    loadStats();
   }
 
   function closePanel() {
