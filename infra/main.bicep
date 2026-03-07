@@ -18,8 +18,8 @@ param location string = 'centralus'
 @description('GitHub repository URL (e.g. https://github.com/OWNER/munchhatmap)')
 param repositoryUrl string
 
-@description('GitHub branch to deploy from')
-param repositoryBranch string = 'main'
+@description('Custom domain for the Static Web App (e.g. munchhatmap.dotheneedful.dev) — leave empty to skip')
+param staticWebAppCustomDomain string = 'munchhatmap.dotheneedful.dev'
 
 var prefix = 'munchhatmap'
 var tags = {
@@ -115,6 +115,7 @@ module staticWebApp 'modules/staticwebapp.bicep' = {
     tags: tags
     repositoryUrl: repositoryUrl
     repositoryBranch: repositoryBranch
+    customDomain: staticWebAppCustomDomain
   }
 }
 
