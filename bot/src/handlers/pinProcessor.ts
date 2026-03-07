@@ -1,7 +1,7 @@
 import { Message } from 'discord.js';
 import { randomUUID } from 'crypto';
 import { extractGps } from './exif.js';
-import { geocodeText } from './geocoding.js';
+import { geocodeText, reverseGeocode } from './geocoding.js';
 import type { MapPin } from '../types/mapPin.js';
 
 export const TRIGGER_TAGS = (process.env.MAP_TRIGGER_TAGS ?? '#munchhat,#munchhatchronicles')
@@ -35,18 +35,21 @@ export async function processMessageIntoPin(message: Message): Promise<ProcessRe
   if (images.length === 0) return 'no_image';
 
   const imageUrl = images[0].url;
-  let coords = await extractGps(imageUrl);
+  const gpsCoords = await extractGps(imageUrl);
 
-  if (!coords) {
+  let location = gpsCoords ? await reverseGeocode(gpsCoords.lat, gpsCoords.lng) : null;
+
+  // Fall back to text geocoding if EXIF had no GPS (reverseGeocode returns null only on error)
+  if (!location) {
     const textForGeocoding = message.content
       .replace(/#munchhat(chronicles)?/gi, '')
       .trim();
     if (textForGeocoding.length > 0) {
-      coords = await geocodeText(textForGeocoding);
+      location = await geocodeText(textForGeocoding);
     }
   }
 
-  if (!coords) return 'no_location';
+  if (!location) return 'no_location';
 
   return {
     id: randomUUID(),
@@ -54,11 +57,14 @@ export async function processMessageIntoPin(message: Message): Promise<ProcessRe
     channelId: message.channelId,
     messageId: message.id,
     userId: message.author.id,
-    lat: coords.lat,
-    lng: coords.lng,
+    username: message.author.username,
+    lat: location.lat,
+    lng: location.lng,
     imageUrl,
     createdAt: new Date(message.createdTimestamp).toISOString(),
     caption: message.content || undefined,
     tagUsed: tag,
+    country: location.country,
+    state: location.state,
   };
 }

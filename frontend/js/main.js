@@ -4,6 +4,7 @@
  */
 
 import { renderPins } from './map.js';
+import { initStats } from './stats.js';
 
 const API_BASE = window.API_BASE ?? '/api';
 
@@ -31,3 +32,5 @@ fetchPins()
     console.error('Failed to load pins:', err);
     countEl.textContent = 'Failed to load pins';
   });
+
+initStats();

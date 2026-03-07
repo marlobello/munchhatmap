@@ -1,13 +1,16 @@
 export interface MapPin {
-  id: string;         // UUID
-  guildId: string;    // Discord server ID (partition key)
-  channelId: string;  // Channel where posted
-  messageId: string;  // Original Discord message ID
-  userId: string;     // Discord user ID
+  id: string;
+  guildId: string;
+  channelId: string;
+  messageId: string;
+  userId: string;
+  username?: string;
   lat: number;
   lng: number;
-  imageUrl: string;   // Discord CDN URL
-  createdAt: string;  // ISO 8601 timestamp
-  caption?: string;   // Optional message text
-  tagUsed?: string;   // e.g. "#munchhat"
+  imageUrl: string;
+  createdAt: string;
+  caption?: string;
+  tagUsed?: string;
+  country?: string;
+  state?: string;
 }

@@ -32,6 +32,85 @@
     #header h1 { font-size: 1.1rem; }
     #pin-count { font-size: 0.85rem; color: #666; }
 
+    /* Stats toggle button */
+    #stats-toggle {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      z-index: 1000;
+      background: rgba(255,255,255,0.95);
+      border: none;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 1.1rem;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      line-height: 1;
+    }
+    #stats-toggle:hover { background: #f0f0f0; }
+
+    /* Stats panel */
+    #stats-panel {
+      position: absolute;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 999;
+      width: 300px;
+      background: #fff;
+      box-shadow: -4px 0 16px rgba(0,0,0,0.15);
+      transform: translateX(100%);
+      transition: transform 0.25s ease;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    #stats-panel.open { transform: translateX(0); }
+
+    .stats-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px;
+      border-bottom: 1px solid #eee;
+      flex-shrink: 0;
+    }
+    .stats-header h2 { font-size: 1rem; margin: 0; }
+    #stats-close {
+      background: none;
+      border: none;
+      font-size: 1rem;
+      cursor: pointer;
+      color: #666;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+    #stats-close:hover { background: #f0f0f0; }
+
+    #stats-content {
+      overflow-y: auto;
+      flex: 1;
+      padding: 12px 16px;
+    }
+    .stats-section { margin-bottom: 20px; }
+    .stats-section h3 { font-size: 0.9rem; margin-bottom: 8px; color: #333; }
+    .stats-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 0;
+      border-bottom: 1px solid #f5f5f5;
+      font-size: 0.85rem;
+    }
+    .stats-rank { width: 24px; text-align: center; flex-shrink: 0; font-size: 0.9rem; }
+    .stats-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .stats-count {
+      font-weight: 600;
+      color: #5865F2;
+      flex-shrink: 0;
+    }
+    .stats-empty { font-size: 0.85rem; color: #999; font-style: italic; }
+
     .popup-content {
       max-width: 260px;
       font-family: sans-serif;
@@ -68,6 +147,14 @@
   <div id="header">
     <h1>🎩 MunchHat Map</h1>
     <span id="pin-count">Loading pins…</span>
+  </div>
+  <button id="stats-toggle" aria-expanded="false" title="View stats">📊</button>
+  <div id="stats-panel" role="complementary" aria-label="Stats">
+    <div class="stats-header">
+      <h2>📊 Stats</h2>
+      <button id="stats-close" aria-label="Close stats">✕</button>
+    </div>
+    <div id="stats-content">Loading stats…</div>
   </div>
   <div id="map"></div>
 
