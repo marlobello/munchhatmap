@@ -25,15 +25,16 @@ client.once(Events.ClientReady, async (c) => {
   console.log(`[bot] Logged in as ${c.user.tag}`);
   console.log(`[bot] Watching for tags: ${process.env.MAP_TRIGGER_TAGS ?? '#munchhat,#munchhatchronicles'}`);
 
-  // Register slash command globally (may take up to 1 hour to propagate to all servers)
+  // Register slash commands per-guild (instant availability vs up to 1 hour for global)
   const rest = new REST().setToken(token!);
-  try {
-    await rest.put(Routes.applicationCommands(c.user.id), {
-      body: [importCommand.toJSON()],
-    });
-    console.log('[bot] Slash command /munchhat-import registered');
-  } catch (err) {
-    console.error('[bot] Failed to register slash commands:', err);
+  const commandBody = [importCommand.toJSON()];
+  for (const guild of c.guilds.cache.values()) {
+    try {
+      await rest.put(Routes.applicationGuildCommands(c.user.id, guild.id), { body: commandBody });
+      console.log(`[bot] Slash commands registered for guild ${guild.id}`);
+    } catch (err) {
+      console.error(`[bot] Failed to register commands for guild ${guild.id}:`, err);
+    }
   }
 });
 
