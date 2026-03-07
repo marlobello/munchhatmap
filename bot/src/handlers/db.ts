@@ -18,3 +18,18 @@ export async function savePin(pin: MapPin): Promise<void> {
   const container = client.database(DB_NAME).container(CONTAINER_NAME);
   await container.items.create(pin);
 }
+
+export async function pinExistsByMessageId(messageId: string, guildId: string): Promise<boolean> {
+  const client = getClient();
+  const container = client.database(DB_NAME).container(CONTAINER_NAME);
+  const { resources } = await container.items
+    .query<{ id: string }>({
+      query: 'SELECT c.id FROM c WHERE c.messageId = @messageId AND c.guildId = @guildId',
+      parameters: [
+        { name: '@messageId', value: messageId },
+        { name: '@guildId', value: guildId },
+      ],
+    })
+    .fetchAll();
+  return resources.length > 0;
+}
