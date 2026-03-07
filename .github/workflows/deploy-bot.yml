@@ -20,10 +20,14 @@ jobs:
   build-and-push:
     runs-on: ubuntu-latest
     outputs:
-      image-tag: ${{ steps.meta.outputs.version }}
+      image-tag: sha-${{ steps.sha.outputs.short }}
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Set short SHA
+        id: sha
+        run: echo "short=$(echo ${{ github.sha }} | cut -c1-7)" >> $GITHUB_OUTPUT
 
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
@@ -40,6 +44,8 @@ jobs:
           tags: |
             type=sha,prefix=sha-
             type=raw,value=latest,enable={{is_default_branch}}
+          flavor: |
+            latest=false
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
@@ -63,8 +69,32 @@ jobs:
 
       - name: Update Container App image
         run: |
-          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
           az containerapp update \
             --name munchhatmap-bot-prod \
             --resource-group rg-munchhatmap-prod \
-            --image ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:sha-${SHORT_SHA}
+            --image ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.build-and-push.outputs.image-tag }}
+
+      - name: Wait for revision to become active
+        run: |
+          IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.build-and-push.outputs.image-tag }}"
+          echo "Waiting for revision with image ${IMAGE} to become active..."
+          for i in $(seq 1 20); do
+            STATUS=$(az containerapp revision list \
+              --name munchhatmap-bot-prod \
+              --resource-group rg-munchhatmap-prod \
+              --query "[?properties.template.containers[0].image=='${IMAGE}'].properties.healthState" \
+              -o tsv 2>/dev/null)
+            echo "Attempt $i: healthState=${STATUS}"
+            if [ "$STATUS" = "Healthy" ]; then
+              echo "Revision is healthy."
+              exit 0
+            fi
+            sleep 15
+          done
+          echo "ERROR: Revision did not become healthy within 5 minutes."
+          az containerapp revision list \
+            --name munchhatmap-bot-prod \
+            --resource-group rg-munchhatmap-prod \
+            --query "[].{name:name, active:properties.active, health:properties.healthState, image:properties.template.containers[0].image}" \
+            -o table
+          exit 1
