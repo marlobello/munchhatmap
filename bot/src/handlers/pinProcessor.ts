@@ -13,6 +13,48 @@ export function detectTag(content: string): string | null {
   return TRIGGER_TAGS.find((tag) => lower.includes(tag)) ?? null;
 }
 
+// Prepositions that commonly precede a location in Discord messages
+const LOCATION_PREPOSITIONS = /^(in|at|near|from|around|visiting|eating\s+in|ate\s+in)\s+/i;
+
+/**
+ * Extracts a geocodable location string from message content.
+ *
+ * Strategy (in order):
+ * 1. Remove the trigger hashtag.
+ * 2. If the remaining text looks like a bare location (no sentence-like
+ *    words), use it directly after stripping leading prepositions.
+ * 3. If the message is a sentence, look for an explicit "in/at <Location>"
+ *    pattern and extract just the location portion.
+ * 4. Return null if nothing useful remains.
+ */
+export function extractLocationText(content: string): string | null {
+  // Remove hashtag and surrounding whitespace
+  let text = content.replace(/#munchhat(chronicles)?/gi, '').trim();
+
+  // Remove trailing emoji and punctuation that confuse geocoders
+  text = text.replace(/[\p{Emoji_Presentation}\p{Extended_Pictographic}!?.,"]+\s*$/u, '').trim();
+
+  if (!text) return null;
+
+  // Strip leading preposition (e.g. "in Spring, TX" → "Spring, TX")
+  text = text.replace(LOCATION_PREPOSITIONS, '').trim();
+
+  // If the text looks like a simple "City, State/Country" or just a place
+  // name (≤ 5 words, no verb-like lowercase words), return it directly.
+  const wordCount = text.split(/\s+/).length;
+  const looksLikeLocation = wordCount <= 5 && !/\b(the|had|was|have|got|went|ate|loved|tried|visited|check|great|good|best|amazing)\b/i.test(text);
+  if (looksLikeLocation) return text;
+
+  // For longer sentences, try to extract a "in/at <Location>" fragment.
+  const match = text.match(/\b(?:in|at|near|from|around)\s+([A-Z][^.!?]*?)(?:\s*[.!?,]|$)/);
+  if (match) return match[1].trim();
+
+  // Last resort: if the whole remaining text is short enough, try it anyway.
+  if (wordCount <= 8) return text;
+
+  return null;
+}
+
 export function getImageAttachments(message: Message): { url: string; contentType: string }[] {
   return message.attachments
     .filter((a) => a.contentType?.startsWith('image/'))
@@ -38,11 +80,9 @@ export async function processMessageIntoPin(message: Message): Promise<ProcessRe
 
   // Text location takes priority — if the user explicitly wrote a place name, trust that.
   // GPS EXIF is used only when no location text is present or text geocoding finds nothing.
-  const textForGeocoding = message.content
-    .replace(/#munchhat(chronicles)?/gi, '')
-    .trim();
+  const textForGeocoding = extractLocationText(message.content);
 
-  let location = textForGeocoding.length > 0 ? await geocodeText(textForGeocoding) : null;
+  let location = textForGeocoding ? await geocodeText(textForGeocoding) : null;
 
   if (!location) {
     const gpsCoords = await extractGps(imageUrl);

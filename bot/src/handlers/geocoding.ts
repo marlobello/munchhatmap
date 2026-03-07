@@ -74,8 +74,13 @@ export async function geocodeText(text: string): Promise<LocationInfo | null> {
     }>;
     if (results.length === 0) return null;
 
-    // Extract the location portion of the query (text before first comma, lowercased)
-    const queryLocation = text.trim().split(',')[0].trim().toLowerCase();
+    // Extract the location name for matching: take text before first comma,
+    // strip any leading preposition, then lowercase.
+    const queryLocation = text.trim()
+      .replace(/^(in|at|near|from|around)\s+/i, '')
+      .split(',')[0]
+      .trim()
+      .toLowerCase();
 
     // Prefer a result whose name starts with the queried location (e.g. "Spring" not "Big Spring")
     const best = results.find((r) => {
