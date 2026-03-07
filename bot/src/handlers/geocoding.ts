@@ -50,8 +50,9 @@ export async function geocodeText(text: string): Promise<LocationInfo | null> {
     const params = new URLSearchParams({
       q: text.trim(),
       format: 'json',
-      limit: '1',
+      limit: '5',
       addressdetails: '1',
+      namedetails: '1',
     });
 
     const response = await fetch(`${NOMINATIM_SEARCH}?${params}`, {
@@ -66,12 +67,24 @@ export async function geocodeText(text: string): Promise<LocationInfo | null> {
     const results = (await response.json()) as Array<{
       lat: string;
       lon: string;
+      name?: string;
+      display_name?: string;
       address?: NominatimAddress;
+      namedetails?: { name?: string };
     }>;
     if (results.length === 0) return null;
 
-    const { lat, lon, address } = results[0];
-    return extractLocationInfo(parseFloat(lat), parseFloat(lon), address);
+    // Extract the location portion of the query (text before first comma, lowercased)
+    const queryLocation = text.trim().split(',')[0].trim().toLowerCase();
+
+    // Prefer a result whose name starts with the queried location (e.g. "Spring" not "Big Spring")
+    const best = results.find((r) => {
+      const name = (r.namedetails?.name ?? r.name ?? '').toLowerCase();
+      return name.startsWith(queryLocation) || queryLocation.startsWith(name);
+    }) ?? results[0];
+
+    console.log(`[geocoding] "${text}" → "${best.display_name}"`);
+    return extractLocationInfo(parseFloat(best.lat), parseFloat(best.lon), best.address);
   } catch (err) {
     console.error('[geocoding] Nominatim search failed:', err instanceof Error ? err.message : err);
     return null;
