@@ -111,7 +111,7 @@ After the Static Web App is deployed, update the `MAP_URL` environment variable:
 az containerapp update \
   --name munchhatmap-bot-prod \
   --resource-group rg-munchhatmap-prod \
-  --set-env-vars MAP_URL=https://YOUR_STATIC_WEB_APP_HOSTNAME.azurestaticapps.net
+  --set-env-vars MAP_URL=https://munchhatmap.dotheneedful.dev
 ```
 
 ---

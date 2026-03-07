@@ -1,4 +1,4 @@
-import * as ExifReader from 'exifr';
+import exifr from 'exifr';
 
 export interface GpsCoordinates {
   lat: number;
@@ -17,7 +17,7 @@ export async function extractGps(imageUrl: string): Promise<GpsCoordinates | nul
     }
     const buffer = Buffer.from(await response.arrayBuffer());
 
-    const gps = await ExifReader.gps(buffer);
+    const gps = await exifr.gps(buffer);
     if (gps && typeof gps.latitude === 'number' && typeof gps.longitude === 'number') {
       return { lat: gps.latitude, lng: gps.longitude };
     }
