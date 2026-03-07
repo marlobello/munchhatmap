@@ -2,6 +2,12 @@
  * map.js — marker rendering and popup logic for MunchHat Map (Leaflet).
  */
 
+const hatIcon = L.icon({
+  iconUrl: '/munchhat.png',
+  iconSize: [40, 30],     // render at 40×30 (preserves aspect ratio of 120×89)
+  iconAnchor: [20, 30],   // bottom-center of the hat sits on the map point
+  popupAnchor: [0, -32],  // popup appears above the icon
+});
 /**
  * @param {string} iso
  * @returns {string}
@@ -59,7 +65,7 @@ function buildPopupContent(pin) {
 export function renderPins(map, pins) {
   const cluster = L.markerClusterGroup({ chunkedLoading: true });
   for (const pin of pins) {
-    const marker = L.marker([pin.lat, pin.lng])
+    const marker = L.marker([pin.lat, pin.lng], { icon: hatIcon })
       .bindPopup(buildPopupContent(pin), { maxWidth: 280 });
     cluster.addLayer(marker);
   }
