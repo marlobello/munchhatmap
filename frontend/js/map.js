@@ -37,12 +37,13 @@ function buildPopupContent(pin) {
   const caption = pin.caption
     ? `<p class="caption">${pin.caption.replace(/</g, '&lt;')}</p>`
     : '';
+  const author = pin.username ? `@${pin.username}` : `<${pin.userId}>`;
   return `
     <div class="popup-content">
       <img src="${pin.imageUrl}" alt="MunchHat photo" loading="lazy" />
       ${caption}
       <p class="meta">📅 ${date}</p>
-      <p class="meta">👤 ${pin.userId}</p>
+      <p class="meta">👤 ${author}</p>
       <a href="${discordLink}" target="_blank" rel="noopener noreferrer">
         View original message →
       </a>
@@ -56,9 +57,11 @@ function buildPopupContent(pin) {
  * @param {Array} pins
  */
 export function renderPins(map, pins) {
+  const cluster = L.markerClusterGroup({ chunkedLoading: true });
   for (const pin of pins) {
-    L.marker([pin.lat, pin.lng])
-      .addTo(map)
+    const marker = L.marker([pin.lat, pin.lng])
       .bindPopup(buildPopupContent(pin), { maxWidth: 280 });
+    cluster.addLayer(marker);
   }
+  map.addLayer(cluster);
 }
