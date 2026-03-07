@@ -35,17 +35,19 @@ export async function processMessageIntoPin(message: Message): Promise<ProcessRe
   if (images.length === 0) return 'no_image';
 
   const imageUrl = images[0].url;
-  const gpsCoords = await extractGps(imageUrl);
 
-  let location = gpsCoords ? await reverseGeocode(gpsCoords.lat, gpsCoords.lng) : null;
+  // Text location takes priority — if the user explicitly wrote a place name, trust that.
+  // GPS EXIF is used only when no location text is present or text geocoding finds nothing.
+  const textForGeocoding = message.content
+    .replace(/#munchhat(chronicles)?/gi, '')
+    .trim();
 
-  // Fall back to text geocoding if EXIF had no GPS (reverseGeocode returns null only on error)
+  let location = textForGeocoding.length > 0 ? await geocodeText(textForGeocoding) : null;
+
   if (!location) {
-    const textForGeocoding = message.content
-      .replace(/#munchhat(chronicles)?/gi, '')
-      .trim();
-    if (textForGeocoding.length > 0) {
-      location = await geocodeText(textForGeocoding);
+    const gpsCoords = await extractGps(imageUrl);
+    if (gpsCoords) {
+      location = await reverseGeocode(gpsCoords.lat, gpsCoords.lng);
     }
   }
 
