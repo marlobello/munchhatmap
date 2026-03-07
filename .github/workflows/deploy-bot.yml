@@ -63,7 +63,8 @@ jobs:
 
       - name: Update Container App image
         run: |
+          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
           az containerapp update \
             --name munchhatmap-bot-prod \
             --resource-group rg-munchhatmap-prod \
-            --image ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.build-and-push.outputs.image-tag }}
+            --image ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:sha-${SHORT_SHA}
