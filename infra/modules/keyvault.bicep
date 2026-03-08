@@ -62,5 +62,17 @@ resource secretCosmosKey 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
   properties: { value: 'PLACEHOLDER' }
 }
 
+resource secretAoaiEndpoint 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
+  parent: keyVault
+  name: 'aoai-endpoint'
+  properties: { value: 'PLACEHOLDER' }
+}
+
+resource secretAoaiKey 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
+  parent: keyVault
+  name: 'aoai-key'
+  properties: { value: 'PLACEHOLDER' }
+}
+
 output keyVaultName string = keyVault.name
 output keyVaultUri string = keyVault.properties.vaultUri

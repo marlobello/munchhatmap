@@ -1,7 +1,8 @@
 import { Message } from 'discord.js';
 import { randomUUID } from 'crypto';
 import { extractGps } from './exif.js';
-import { geocodeText, reverseGeocode } from './geocoding.js';
+import { reverseGeocode } from './geocoding.js';
+import { geocodeWithText, geocodeWithImage } from './aoai.js';
 import type { MapPin } from '../types/mapPin.js';
 
 export const TRIGGER_TAGS = (process.env.MAP_TRIGGER_TAGS ?? '#munchhat,#munchhatchronicles')
@@ -78,24 +79,45 @@ export async function processMessageIntoPin(message: Message): Promise<ProcessRe
 
   const imageUrl = images[0].url;
 
-  // Text location takes priority — if the user explicitly wrote a place name, trust that.
-  // GPS EXIF is used only when no location text is present or text geocoding finds nothing.
-  const textForGeocoding = extractLocationText(message.content);
-
-  let location = textForGeocoding ? await geocodeText(textForGeocoding) : null;
-
-  if (!location) {
-    const gpsCoords = await extractGps(imageUrl);
-    if (gpsCoords) {
-      location = await reverseGeocode(gpsCoords.lat, gpsCoords.lng);
+  // ── Step 1: EXIF GPS (most accurate — trust device GPS above all else)
+  const gpsCoords = await extractGps(imageUrl);
+  if (gpsCoords) {
+    const location = await reverseGeocode(gpsCoords.lat, gpsCoords.lng);
+    if (location) {
+      console.log(`[pinProcessor] located via EXIF GPS: ${location.lat},${location.lng}`);
+      return buildPin(message, imageUrl, tag, location);
     }
   }
 
-  if (!location) return 'no_location';
+  // ── Step 2: AOAI text geocoding (smart context understanding)
+  const messageText = message.content.replace(/#munchhat(chronicles)?/gi, '').trim();
+  if (messageText.length > 0) {
+    const location = await geocodeWithText(messageText);
+    if (location) {
+      console.log(`[pinProcessor] located via AOAI text: ${location.lat},${location.lng}`);
+      return buildPin(message, imageUrl, tag, location);
+    }
+  }
 
+  // ── Step 3: AOAI vision (image recognition fallback)
+  const location = await geocodeWithImage(imageUrl);
+  if (location) {
+    console.log(`[pinProcessor] located via AOAI vision: ${location.lat},${location.lng}`);
+    return buildPin(message, imageUrl, tag, location);
+  }
+
+  return 'no_location';
+}
+
+function buildPin(
+  message: Message,
+  imageUrl: string,
+  tag: string,
+  location: { lat: number; lng: number; country?: string; state?: string },
+): MapPin {
   return {
     id: randomUUID(),
-    guildId: message.guildId,
+    guildId: message.guildId!,
     channelId: message.channelId,
     messageId: message.id,
     userId: message.author.id,

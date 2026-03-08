@@ -12,8 +12,8 @@ targetScope = 'resourceGroup'
 @description('Environment name (used in resource naming)')
 param env string = 'prod'
 
-@description('Azure region for all resources')
-param location string = 'centralus'
+@description('Azure region for Azure OpenAI (requires eastus/eastus2/swedencentral for gpt-4o-mini)')
+param openAiLocation string = 'eastus'
 
 @description('GitHub repository URL (e.g. https://github.com/OWNER/munchhatmap)')
 param repositoryUrl string
@@ -91,6 +91,18 @@ module functions 'modules/functions.bicep' = {
   }
 }
 
+// ─── Step 5.5: Azure OpenAI ─────────────────────────────────────────────────
+// Deployed to eastus for gpt-4o-mini availability. Pay-per-token, no idle cost.
+
+module openAi 'modules/openai.bicep' = {
+  name: 'openAi'
+  params: {
+    name: '${prefix}-aoai-${env}'
+    location: openAiLocation
+    tags: tags
+  }
+}
+
 // ─── Step 6: Container App (Discord Bot) ────────────────────────────────────
 
 module containerApp 'modules/containerapp.bicep' = {
@@ -125,6 +137,7 @@ output staticWebAppHostname string = staticWebApp.outputs.staticWebAppHostname
 output functionAppHostname string = functions.outputs.functionAppHostname
 output keyVaultName string = keyVault.outputs.keyVaultName
 output cosmosEndpoint string = cosmosDb.outputs.cosmosEndpoint
+output openAiEndpoint string = openAi.outputs.endpoint
 
 @description('Add this token to GitHub Actions secret: AZURE_STATIC_WEB_APPS_API_TOKEN')
 output staticWebAppDeploymentToken string = staticWebApp.outputs.deploymentToken

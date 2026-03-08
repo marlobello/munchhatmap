@@ -62,6 +62,16 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
           keyVaultUrl: '${keyVaultUri}secrets/cosmos-db-key'
           identity: botIdentityId
         }
+        {
+          name: 'aoai-endpoint'
+          keyVaultUrl: '${keyVaultUri}secrets/aoai-endpoint'
+          identity: botIdentityId
+        }
+        {
+          name: 'aoai-key'
+          keyVaultUrl: '${keyVaultUri}secrets/aoai-key'
+          identity: botIdentityId
+        }
       ]
       registries: [] // Public ghcr.io image — no registry credentials needed for public images
     }
@@ -95,6 +105,18 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'MAP_URL'
               value: ''
+            }
+            {
+              name: 'AZURE_OPENAI_ENDPOINT'
+              secretRef: 'aoai-endpoint'
+            }
+            {
+              name: 'AZURE_OPENAI_API_KEY'
+              secretRef: 'aoai-key'
+            }
+            {
+              name: 'AZURE_OPENAI_DEPLOYMENT'
+              value: 'gpt-4o-mini'
             }
           ]
         }
