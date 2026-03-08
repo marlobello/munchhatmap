@@ -11,6 +11,10 @@ import { processMessageIntoPin } from './pinProcessor.js';
 
 const MAP_URL = process.env.MAP_URL ?? '';
 const DISCORD_MSG_BASE = 'https://discord.com/channels';
+const IMPORT_COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes per user per channel
+
+/** userId → last import timestamp */
+const lastImportTime = new Map<string, number>();
 
 interface FailedMessage {
   url: string;
@@ -51,6 +55,20 @@ export async function handleImport(interaction: ChatInputCommandInteraction): Pr
     await interaction.reply({ content: '❌ This command must be used in a text channel.', ephemeral: true });
     return;
   }
+
+  // Rate limit: one import per user per 5 minutes (regardless of scope)
+  const cooldownKey = `${interaction.user.id}:${channel.id}`;
+  const lastRun = lastImportTime.get(cooldownKey) ?? 0;
+  const remaining = IMPORT_COOLDOWN_MS - (Date.now() - lastRun);
+  if (remaining > 0) {
+    const mins = Math.ceil(remaining / 60000);
+    await interaction.reply({
+      content: `⏳ Please wait ${mins} more minute${mins !== 1 ? 's' : ''} before running the import again.`,
+      ephemeral: true,
+    });
+    return;
+  }
+  lastImportTime.set(cooldownKey, Date.now());
 
   await interaction.deferReply();
 

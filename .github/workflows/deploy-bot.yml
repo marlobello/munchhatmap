@@ -29,6 +29,12 @@ jobs:
         id: sha
         run: echo "short=$(echo ${{ github.sha }} | cut -c1-7)" >> $GITHUB_OUTPUT
 
+      - name: Audit bot dependencies
+        working-directory: bot
+        run: |
+          npm install
+          npm audit --audit-level=high
+
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:

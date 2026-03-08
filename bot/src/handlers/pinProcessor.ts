@@ -54,8 +54,9 @@ export async function processMessageIntoPin(message: Message): Promise<ProcessRe
 
   // ── Step 2: AOAI text geocoding — pass the full message, AOAI understands context
   const messageText = message.content.replace(/#munchhat(chronicles)?/gi, '').trim();
-  if (messageText.length > 0) {
-    const location = await geocodeWithText(messageText);
+  const truncatedText = messageText.slice(0, 300);
+  if (truncatedText.length > 0) {
+    const location = await geocodeWithText(truncatedText);
     if (location) {
       console.log(`[pinProcessor] located via AOAI text: ${location.lat},${location.lng}`);
       return buildPin(message, imageUrl, tag, location);

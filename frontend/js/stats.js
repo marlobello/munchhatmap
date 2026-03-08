@@ -11,32 +11,44 @@ function rankBadge(i) {
   return `${i + 1}.`;
 }
 
+function createEl(tag, className, textContent) {
+  const el = document.createElement(tag);
+  if (className) el.className = className;
+  if (textContent !== undefined) el.textContent = textContent;
+  return el;
+}
+
 function renderList(items, labelKey) {
-  if (!items.length) return '<p class="stats-empty">No data yet</p>';
-  return items.map((item, i) => `
-    <div class="stats-row">
-      <span class="stats-rank">${rankBadge(i)}</span>
-      <span class="stats-label">${item[labelKey].replace(/</g, '&lt;')}</span>
-      <span class="stats-count">${item.count}</span>
-    </div>
-  `).join('');
+  if (!items.length) {
+    return createEl('p', 'stats-empty', 'No data yet');
+  }
+  const frag = document.createDocumentFragment();
+  items.forEach((item, i) => {
+    const row = createEl('div', 'stats-row');
+    row.appendChild(createEl('span', 'stats-rank', rankBadge(i)));
+    row.appendChild(createEl('span', 'stats-label', String(item[labelKey])));
+    row.appendChild(createEl('span', 'stats-count', String(item.count)));
+    frag.appendChild(row);
+  });
+  return frag;
 }
 
 function renderStats(stats) {
-  return `
-    <div class="stats-section">
-      <h3>🏆 Leaderboard</h3>
-      ${renderList(stats.users, 'username')}
-    </div>
-    <div class="stats-section">
-      <h3>🇺🇸 US States</h3>
-      ${renderList(stats.states, 'name')}
-    </div>
-    <div class="stats-section">
-      <h3>🌍 Countries</h3>
-      ${renderList(stats.countries, 'name')}
-    </div>
-  `;
+  const wrapper = document.createDocumentFragment();
+
+  const sections = [
+    { title: '🏆 Leaderboard', items: stats.users, key: 'username' },
+    { title: '🇺🇸 US States',  items: stats.states,    key: 'name' },
+    { title: '🌍 Countries',   items: stats.countries,  key: 'name' },
+  ];
+
+  for (const { title, items, key } of sections) {
+    const section = createEl('div', 'stats-section');
+    section.appendChild(createEl('h3', null, title));
+    section.appendChild(renderList(items, key));
+    wrapper.appendChild(section);
+  }
+  return wrapper;
 }
 
 export function initStats() {
@@ -46,17 +58,17 @@ export function initStats() {
   const content = document.getElementById('stats-content');
 
   function loadStats() {
-    content.innerHTML = '<p class="stats-empty">Loading…</p>';
+    content.replaceChildren(createEl('p', 'stats-empty', 'Loading…'));
     fetch(`${API_BASE}/getStats`)
       .then((r) => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         return r.json();
       })
       .then((stats) => {
-        content.innerHTML = renderStats(stats);
+        content.replaceChildren(renderStats(stats));
       })
       .catch((err) => {
-        content.innerHTML = `<p class="stats-empty">Failed to load stats</p>`;
+        content.replaceChildren(createEl('p', 'stats-empty', 'Failed to load stats'));
         console.error('Stats error:', err);
       });
   }

@@ -3,7 +3,8 @@ import { handleMessage } from './handlers/messageHandler.js';
 import { handleImport } from './handlers/importHandler.js';
 
 process.on('unhandledRejection', (reason) => {
-  console.error('[bot] Unhandled promise rejection:', reason);
+  const message = reason instanceof Error ? reason.message : String(reason);
+  console.error('[bot] Unhandled promise rejection:', message);
 });
 
 const token = process.env.DISCORD_BOT_TOKEN;

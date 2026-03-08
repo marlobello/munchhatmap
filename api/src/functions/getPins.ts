@@ -29,8 +29,7 @@ async function getPinsHandler(
       status: 200,
       headers: {
         'Content-Type': 'application/json',
-        // TODO: restrict to Static Web App origin in production
-        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Origin': process.env.ALLOWED_ORIGIN ?? 'https://munchhatmap.dotheneedful.dev',
       },
       body: JSON.stringify(pins),
     };

@@ -15,9 +15,6 @@ function getClient(): CosmosClient {
   return _client;
 }
 
-const DB_NAME = 'munchhatmap';
-const CONTAINER_NAME = 'pins';
-
 interface PinStatsRow {
   userId: string;
   username?: string;
@@ -94,7 +91,7 @@ async function getStatsHandler(
       status: 200,
       headers: {
         'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Origin': process.env.ALLOWED_ORIGIN ?? 'https://munchhatmap.dotheneedful.dev',
       },
       body: JSON.stringify(stats),
     };

@@ -94,6 +94,7 @@ module functions 'modules/functions.bicep' = {
     tags: tags
     keyVaultUri: keyVault.outputs.keyVaultUri
     functionIdentityId: identities.outputs.functionIdentityId
+    allowedOrigin: 'https://${staticWebAppCustomDomain}'
   }
 }
 

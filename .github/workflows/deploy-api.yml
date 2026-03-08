@@ -27,6 +27,10 @@ jobs:
         working-directory: api
         run: npm install
 
+      - name: Audit dependencies
+        working-directory: api
+        run: npm audit --audit-level=high
+
       - name: Build TypeScript
         working-directory: api
         run: npm run build

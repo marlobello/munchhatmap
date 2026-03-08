@@ -5,6 +5,7 @@ param name string
 param location string
 param tags object = {}
 param keyVaultUri string
+param allowedOrigin string = 'https://munchhatmap.dotheneedful.dev'
 
 // Pre-created managed identity (from identities module)
 param functionIdentityId string
@@ -86,10 +87,14 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
           name: 'COSMOS_DB_KEY'
           value: '@Microsoft.KeyVault(VaultName=${split(keyVaultUri, '/')[2]};SecretName=cosmos-db-key)'
         }
+        {
+          name: 'ALLOWED_ORIGIN'
+          value: allowedOrigin
+        }
       ]
       cors: {
         allowedOrigins: [
-          '*' // TODO: restrict to Static Web App origin in production
+          allowedOrigin
         ]
       }
     }
