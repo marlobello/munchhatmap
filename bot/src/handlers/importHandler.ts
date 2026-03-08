@@ -15,6 +15,7 @@ const DISCORD_MSG_BASE = 'https://discord.com/channels';
 interface FailedMessage {
   url: string;
   reason: 'no_image' | 'no_location';
+  username: string;
 }
 
 /** Splits a list of lines into chunks that each fit within Discord's 2000-char limit. */
@@ -89,12 +90,12 @@ export async function handleImport(interaction: ChatInputCommandInteraction): Pr
       const msgUrl = `${DISCORD_MSG_BASE}/${message.guildId}/${message.channelId}/${message.id}`;
 
       if (result === 'no_image') {
-        failed.push({ url: msgUrl, reason: 'no_image' });
+        failed.push({ url: msgUrl, reason: 'no_image', username: message.author.username });
         continue;
       }
 
       if (result === 'no_location') {
-        failed.push({ url: msgUrl, reason: 'no_location' });
+        failed.push({ url: msgUrl, reason: 'no_location', username: message.author.username });
         continue;
       }
 
@@ -139,12 +140,12 @@ export async function handleImport(interaction: ChatInputCommandInteraction): Pr
   const lines: string[] = [];
   if (noImage.length) {
     lines.push(`**📷 No image attached (${noImage.length}):**`);
-    lines.push(...noImage.map((f) => `• ${f.url}`));
+    lines.push(...noImage.map((f) => `• @${f.username} — ${f.url}`));
   }
   if (noLocation.length) {
     if (lines.length) lines.push('');
     lines.push(`**📍 No location found (${noLocation.length}):**`);
-    lines.push(...noLocation.map((f) => `• ${f.url}`));
+    lines.push(...noLocation.map((f) => `• @${f.username} — ${f.url}`));
     lines.push('');
     lines.push('_Tip: edit the message to include a location like `Spring, Texas` then re-run `/munchhat-import`._');
   }

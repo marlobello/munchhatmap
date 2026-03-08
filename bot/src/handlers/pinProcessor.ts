@@ -1,8 +1,8 @@
 import { Message } from 'discord.js';
 import { randomUUID } from 'crypto';
 import { extractGps } from './exif.js';
-import { reverseGeocode } from './geocoding.js';
-import { geocodeWithText, geocodeWithImage } from './aoai.js';
+import { geocodeWithText, geocodeWithImage, reverseGeocodeWithAoai } from './aoai.js';
+import type { LocationInfo } from './aoai.js';
 import type { MapPin } from '../types/mapPin.js';
 
 export const TRIGGER_TAGS = (process.env.MAP_TRIGGER_TAGS ?? '#munchhat,#munchhatchronicles')
@@ -12,48 +12,6 @@ export const TRIGGER_TAGS = (process.env.MAP_TRIGGER_TAGS ?? '#munchhat,#munchha
 export function detectTag(content: string): string | null {
   const lower = content.toLowerCase();
   return TRIGGER_TAGS.find((tag) => lower.includes(tag)) ?? null;
-}
-
-// Prepositions that commonly precede a location in Discord messages
-const LOCATION_PREPOSITIONS = /^(in|at|near|from|around|visiting|eating\s+in|ate\s+in)\s+/i;
-
-/**
- * Extracts a geocodable location string from message content.
- *
- * Strategy (in order):
- * 1. Remove the trigger hashtag.
- * 2. If the remaining text looks like a bare location (no sentence-like
- *    words), use it directly after stripping leading prepositions.
- * 3. If the message is a sentence, look for an explicit "in/at <Location>"
- *    pattern and extract just the location portion.
- * 4. Return null if nothing useful remains.
- */
-export function extractLocationText(content: string): string | null {
-  // Remove hashtag and surrounding whitespace
-  let text = content.replace(/#munchhat(chronicles)?/gi, '').trim();
-
-  // Remove trailing emoji and punctuation that confuse geocoders
-  text = text.replace(/[\p{Emoji_Presentation}\p{Extended_Pictographic}!?.,"]+\s*$/u, '').trim();
-
-  if (!text) return null;
-
-  // Strip leading preposition (e.g. "in Spring, TX" → "Spring, TX")
-  text = text.replace(LOCATION_PREPOSITIONS, '').trim();
-
-  // If the text looks like a simple "City, State/Country" or just a place
-  // name (≤ 5 words, no verb-like lowercase words), return it directly.
-  const wordCount = text.split(/\s+/).length;
-  const looksLikeLocation = wordCount <= 5 && !/\b(the|had|was|have|got|went|ate|loved|tried|visited|check|great|good|best|amazing)\b/i.test(text);
-  if (looksLikeLocation) return text;
-
-  // For longer sentences, try to extract a "in/at <Location>" fragment.
-  const match = text.match(/\b(?:in|at|near|from|around)\s+([A-Z][^.!?]*?)(?:\s*[.!?,]|$)/);
-  if (match) return match[1].trim();
-
-  // Last resort: if the whole remaining text is short enough, try it anyway.
-  if (wordCount <= 8) return text;
-
-  return null;
 }
 
 export function getImageAttachments(message: Message): { url: string; contentType: string }[] {
@@ -67,6 +25,11 @@ export type ProcessResult = MapPin | 'no_tag' | 'no_image' | 'no_location';
 /**
  * Attempts to build a MapPin from a Discord message.
  * Returns the pin on success or a string reason code on failure.
+ *
+ * Geocoding pipeline:
+ *   1. EXIF GPS  → AOAI reverse geocode for country/state  (most accurate)
+ *   2. AOAI text → extracts coords + country/state in one call
+ *   3. AOAI vision → image recognition + country/state in one call
  */
 export async function processMessageIntoPin(message: Message): Promise<ProcessResult> {
   if (!message.guildId) return 'no_tag';
@@ -82,28 +45,26 @@ export async function processMessageIntoPin(message: Message): Promise<ProcessRe
   // ── Step 1: EXIF GPS (most accurate — trust device GPS above all else)
   const gpsCoords = await extractGps(imageUrl);
   if (gpsCoords) {
-    const location = await reverseGeocode(gpsCoords.lat, gpsCoords.lng);
+    const location = await reverseGeocodeWithAoai(gpsCoords.lat, gpsCoords.lng);
     if (location) {
       console.log(`[pinProcessor] located via EXIF GPS: ${location.lat},${location.lng}`);
       return buildPin(message, imageUrl, tag, location);
     }
   }
 
-  // ── Step 2: AOAI text geocoding (smart context understanding)
+  // ── Step 2: AOAI text geocoding — pass the full message, AOAI understands context
   const messageText = message.content.replace(/#munchhat(chronicles)?/gi, '').trim();
   if (messageText.length > 0) {
-    const aoaiLocation = await geocodeWithText(messageText);
-    if (aoaiLocation) {
-      const location = await reverseGeocode(aoaiLocation.lat, aoaiLocation.lng) ?? aoaiLocation;
+    const location = await geocodeWithText(messageText);
+    if (location) {
       console.log(`[pinProcessor] located via AOAI text: ${location.lat},${location.lng}`);
       return buildPin(message, imageUrl, tag, location);
     }
   }
 
   // ── Step 3: AOAI vision (image recognition fallback)
-  const aoaiVisionLocation = await geocodeWithImage(imageUrl);
-  if (aoaiVisionLocation) {
-    const location = await reverseGeocode(aoaiVisionLocation.lat, aoaiVisionLocation.lng) ?? aoaiVisionLocation;
+  const location = await geocodeWithImage(imageUrl);
+  if (location) {
     console.log(`[pinProcessor] located via AOAI vision: ${location.lat},${location.lng}`);
     return buildPin(message, imageUrl, tag, location);
   }
@@ -111,12 +72,7 @@ export async function processMessageIntoPin(message: Message): Promise<ProcessRe
   return 'no_location';
 }
 
-function buildPin(
-  message: Message,
-  imageUrl: string,
-  tag: string,
-  location: { lat: number; lng: number; country?: string; state?: string },
-): MapPin {
+function buildPin(message: Message, imageUrl: string, tag: string, location: LocationInfo): MapPin {
   return {
     id: randomUUID(),
     guildId: message.guildId!,
