@@ -4,13 +4,17 @@ import type { MapPin } from './types.js';
 const DB_NAME = 'munchhatmap';
 const CONTAINER_NAME = 'pins';
 
+let _client: CosmosClient | null = null;
+
 function getClient(): CosmosClient {
+  if (_client) return _client;
   const endpoint = process.env.COSMOS_DB_ENDPOINT;
   const key = process.env.COSMOS_DB_KEY;
   if (!endpoint || !key) {
     throw new Error('COSMOS_DB_ENDPOINT and COSMOS_DB_KEY environment variables are required');
   }
-  return new CosmosClient({ endpoint, key });
+  _client = new CosmosClient({ endpoint, key });
+  return _client;
 }
 
 /**

@@ -4,6 +4,20 @@ import { CosmosClient } from '@azure/cosmos';
 const DB_NAME = 'munchhatmap';
 const CONTAINER_NAME = 'pins';
 
+let _client: CosmosClient | null = null;
+
+function getClient(): CosmosClient {
+  if (_client) return _client;
+  const endpoint = process.env.COSMOS_DB_ENDPOINT;
+  const key = process.env.COSMOS_DB_KEY;
+  if (!endpoint || !key) throw new Error('Missing Cosmos DB configuration');
+  _client = new CosmosClient({ endpoint, key });
+  return _client;
+}
+
+const DB_NAME = 'munchhatmap';
+const CONTAINER_NAME = 'pins';
+
 interface PinStatsRow {
   userId: string;
   username?: string;
@@ -30,7 +44,7 @@ async function getStatsHandler(
   }
 
   try {
-    const client = new CosmosClient({ endpoint, key });
+    const client = getClient();
     const container = client.database(DB_NAME).container(CONTAINER_NAME);
 
     const { resources } = await container.items

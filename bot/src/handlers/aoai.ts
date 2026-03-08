@@ -49,6 +49,7 @@ function parseGeocodeResponse(content: string | null): LocationInfo | null {
     const lng = Number(parsed.lng);
     if (isNaN(lat) || isNaN(lng)) return null;
     if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return null;
+    if (lat === 0 && lng === 0) return null; // sentinel for "unknown" — reject
     return {
       lat,
       lng,

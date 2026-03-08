@@ -2,6 +2,10 @@ import { Client, GatewayIntentBits, Events, REST, Routes, SlashCommandBuilder, C
 import { handleMessage } from './handlers/messageHandler.js';
 import { handleImport } from './handlers/importHandler.js';
 
+process.on('unhandledRejection', (reason) => {
+  console.error('[bot] Unhandled promise rejection:', reason);
+});
+
 const token = process.env.DISCORD_BOT_TOKEN;
 if (!token) {
   console.error('DISCORD_BOT_TOKEN environment variable is required');

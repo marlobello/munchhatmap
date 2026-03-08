@@ -12,11 +12,17 @@ targetScope = 'resourceGroup'
 @description('Environment name (used in resource naming)')
 param env string = 'prod'
 
+@description('Azure region for all resources')
+param location string = 'centralus'
+
 @description('Azure region for Azure OpenAI (requires eastus/eastus2/swedencentral for gpt-4o-mini)')
 param openAiLocation string = 'eastus'
 
 @description('GitHub repository URL (e.g. https://github.com/OWNER/munchhatmap)')
 param repositoryUrl string
+
+@description('Git branch to deploy from')
+param repositoryBranch string = 'main'
 
 @description('Custom domain for the Static Web App (e.g. munchhatmap.dotheneedful.dev) — leave empty to skip')
 param staticWebAppCustomDomain string = 'munchhatmap.dotheneedful.dev'

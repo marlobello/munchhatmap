@@ -8,6 +8,26 @@ const hatIcon = L.icon({
   iconAnchor: [20, 30],   // bottom-center of the hat sits on the map point
   popupAnchor: [0, -32],  // popup appears above the icon
 });
+
+/** Escapes a string for safe use inside an HTML attribute value. */
+function escapeAttr(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+/** Escapes a string for safe use as HTML text content. */
+function escapeHtml(str) {
+  return String(str).replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+/** Validates that a string is a safe Discord snowflake (numeric only). */
+function isSafeSnowflake(str) {
+  return /^\d+$/.test(String(str));
+}
 /**
  * @param {string} iso
  * @returns {string}
@@ -39,20 +59,21 @@ function discordMessageLink(guildId, channelId, messageId) {
  */
 function buildPopupContent(pin) {
   const date = formatDate(pin.createdAt);
-  const discordLink = discordMessageLink(pin.guildId, pin.channelId, pin.messageId);
+  // Only build the Discord link if all IDs are safe snowflakes
+  const safeLink = isSafeSnowflake(pin.guildId) && isSafeSnowflake(pin.channelId) && isSafeSnowflake(pin.messageId)
+    ? discordMessageLink(pin.guildId, pin.channelId, pin.messageId)
+    : null;
   const caption = pin.caption
-    ? `<p class="caption">${pin.caption.replace(/</g, '&lt;')}</p>`
+    ? `<p class="caption">${escapeHtml(pin.caption)}</p>`
     : '';
-  const author = pin.username ? `@${pin.username}` : `<${pin.userId}>`;
+  const author = pin.username ? `@${escapeHtml(pin.username)}` : escapeHtml(`<${pin.userId}>`);
   return `
     <div class="popup-content">
-      <img src="${pin.imageUrl}" alt="MunchHat photo" loading="lazy" />
+      <img src="${escapeAttr(pin.imageUrl)}" alt="MunchHat photo" loading="lazy" />
       ${caption}
       <p class="meta">📅 ${date}</p>
       <p class="meta">👤 ${author}</p>
-      <a href="${discordLink}" target="_blank" rel="noopener noreferrer">
-        View original message →
-      </a>
+      ${safeLink ? `<a href="${escapeAttr(safeLink)}" target="_blank" rel="noopener noreferrer">View original message →</a>` : ''}
     </div>
   `;
 }
