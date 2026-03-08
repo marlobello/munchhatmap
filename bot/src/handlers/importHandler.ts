@@ -34,9 +34,17 @@ function chunkLines(header: string, lines: string[], maxLen = 1950): string[] {
 }
 
 export async function handleImport(interaction: ChatInputCommandInteraction): Promise<void> {
-  if (!interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild)) {
+  const hasManageServer = interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild) ?? false;
+  const hasModRole = interaction.guild?.roles.cache.find(
+    (r) => r.name.toLowerCase() === 'mod',
+  );
+  const memberHasModRole =
+    hasModRole &&
+    (interaction.member?.roles as { cache: { has: (id: string) => boolean } })?.cache?.has(hasModRole.id);
+
+  if (!hasManageServer && !memberHasModRole) {
     await interaction.reply({
-      content: '❌ You need the **Manage Server** permission to run this command.',
+      content: '❌ You need the **Manage Server** permission or the **MOD** role to run this command.',
       ephemeral: true,
     });
     return;
