@@ -35,20 +35,15 @@ function chunkLines(header: string, lines: string[], maxLen = 1950): string[] {
 
 export async function handleImport(interaction: ChatInputCommandInteraction): Promise<void> {
   const hasManageServer = interaction.memberPermissions?.has(PermissionFlagsBits.ManageGuild) ?? false;
-  const hasModRole = interaction.guild?.roles.cache.find(
-    (r) => r.name.toLowerCase() === 'mod',
-  );
+  const modRole = interaction.guild?.roles.cache.find((r) => r.name.toLowerCase() === 'mod');
   const memberHasModRole =
-    hasModRole &&
-    (interaction.member?.roles as { cache: { has: (id: string) => boolean } })?.cache?.has(hasModRole.id);
+    modRole &&
+    (interaction.member?.roles as { cache: { has: (id: string) => boolean } })?.cache?.has(modRole.id);
 
-  if (!hasManageServer && !memberHasModRole) {
-    await interaction.reply({
-      content: '❌ You need the **Manage Server** permission or the **MOD** role to run this command.',
-      ephemeral: true,
-    });
-    return;
-  }
+  // Elevated users (Manage Server or MOD) import all messages.
+  // Everyone else only imports their own messages.
+  const elevated = hasManageServer || memberHasModRole;
+  const filterUserId = elevated ? null : interaction.user.id;
 
   const channel = interaction.channel;
   if (!channel || !(channel instanceof TextChannel)) {
@@ -58,13 +53,14 @@ export async function handleImport(interaction: ChatInputCommandInteraction): Pr
 
   await interaction.deferReply();
 
+  const scopeNote = elevated ? 'all messages' : 'your messages only';
   let imported = 0;
   let duplicates = 0;
   let lastMessageId: Snowflake | undefined;
   let totalScanned = 0;
   const failed: FailedMessage[] = [];
 
-  console.log(`[import] Starting history scan of #${channel.name} (${channel.id})`);
+  console.log(`[import] Starting history scan of #${channel.name} (${channel.id}) scope=${scopeNote}`);
 
   while (true) {
     let batch: Collection<Snowflake, Message>;
@@ -82,6 +78,10 @@ export async function handleImport(interaction: ChatInputCommandInteraction): Pr
 
     for (const message of batch.values()) {
       totalScanned++;
+
+      // Non-elevated users only import their own messages
+      if (filterUserId && message.author.id !== filterUserId) continue;
+
       const result = await processMessageIntoPin(message);
 
       if (result === 'no_tag') continue;
@@ -123,7 +123,7 @@ export async function handleImport(interaction: ChatInputCommandInteraction): Pr
 
   const mapLink = MAP_URL ? `\n🗺️ [View the map](${MAP_URL})` : '';
   await interaction.editReply(
-    `✅ **Import complete** — scanned ${totalScanned} messages\n` +
+    `✅ **Import complete** (${scopeNote}) — scanned ${totalScanned} messages\n` +
     `📍 Imported: **${imported}** new pin${imported !== 1 ? 's' : ''}\n` +
     `⏭️ Already mapped: **${duplicates}**\n` +
     `⚠️ Needs attention: **${failed.length}**` +
