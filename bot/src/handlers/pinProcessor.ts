@@ -92,16 +92,18 @@ export async function processMessageIntoPin(message: Message): Promise<ProcessRe
   // ── Step 2: AOAI text geocoding (smart context understanding)
   const messageText = message.content.replace(/#munchhat(chronicles)?/gi, '').trim();
   if (messageText.length > 0) {
-    const location = await geocodeWithText(messageText);
-    if (location) {
+    const aoaiLocation = await geocodeWithText(messageText);
+    if (aoaiLocation) {
+      const location = await reverseGeocode(aoaiLocation.lat, aoaiLocation.lng) ?? aoaiLocation;
       console.log(`[pinProcessor] located via AOAI text: ${location.lat},${location.lng}`);
       return buildPin(message, imageUrl, tag, location);
     }
   }
 
   // ── Step 3: AOAI vision (image recognition fallback)
-  const location = await geocodeWithImage(imageUrl);
-  if (location) {
+  const aoaiVisionLocation = await geocodeWithImage(imageUrl);
+  if (aoaiVisionLocation) {
+    const location = await reverseGeocode(aoaiVisionLocation.lat, aoaiVisionLocation.lng) ?? aoaiVisionLocation;
     console.log(`[pinProcessor] located via AOAI vision: ${location.lat},${location.lng}`);
     return buildPin(message, imageUrl, tag, location);
   }
