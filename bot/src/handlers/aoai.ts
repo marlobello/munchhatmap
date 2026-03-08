@@ -1,4 +1,4 @@
-import AzureOpenAI from 'openai';
+import { AzureOpenAI } from 'openai';
 import type { LocationInfo } from './geocoding.js';
 
 const endpoint   = process.env.AZURE_OPENAI_ENDPOINT ?? '';
