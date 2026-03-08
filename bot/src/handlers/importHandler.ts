@@ -2,6 +2,7 @@ import {
   ChatInputCommandInteraction,
   PermissionFlagsBits,
   TextChannel,
+  ThreadChannel,
   Collection,
   Message,
   Snowflake,
@@ -75,79 +76,120 @@ export async function handleImport(interaction: ChatInputCommandInteraction): Pr
   const scopeNote = elevated ? 'all messages' : 'your messages only';
   let imported = 0;
   let duplicates = 0;
-  let lastMessageId: Snowflake | undefined;
   let totalScanned = 0;
   const failed: FailedMessage[] = [];
 
-  console.log(`[import] Starting history scan of #${channel.name} (${channel.id}) scope=${scopeNote}`);
+  /**
+   * Scans all messages in a fetchable channel/thread and processes qualifying ones into pins.
+   * @param source       The channel or thread to scan
+   * @param skipTagCheck When true, all messages with images are treated as potential pins
+   */
+  async function scanSource(
+    source: TextChannel | ThreadChannel,
+    skipTagCheck: boolean,
+  ): Promise<void> {
+    let lastMessageId: Snowflake | undefined;
+    console.log(`[import] Scanning ${skipTagCheck ? 'thread' : 'channel'} #${source.name} (${source.id})`);
 
-  while (true) {
-    let batch: Collection<Snowflake, Message>;
-    try {
-      batch = await channel.messages.fetch({
-        limit: 100,
-        ...(lastMessageId ? { before: lastMessageId } : {}),
-      });
-    } catch (err) {
-      console.error('[import] Failed to fetch message batch:', err);
-      break;
-    }
-
-    if (batch.size === 0) break;
-
-    for (const message of batch.values()) {
-      totalScanned++;
-
-      // Non-elevated users only import their own messages
-      if (filterUserId && message.author.id !== filterUserId) continue;
-
-      // Skip deduplication check early — avoids wasting AOAI calls and
-      // prevents already-mapped messages from appearing in the failure report
-      const alreadyExists = await pinExistsByMessageId(message.id, message.guildId!);
-      if (alreadyExists) {
-        duplicates++;
-        continue;
-      }
-
-      const result = await processMessageIntoPin(message);
-
-      if (result === 'no_tag') continue;
-
-      const msgUrl = `${DISCORD_MSG_BASE}/${message.guildId}/${message.channelId}/${message.id}`;
-
-      if (result === 'no_image') {
-        failed.push({ url: msgUrl, reason: 'no_image', username: message.author.username });
-        continue;
-      }
-
-      if (result === 'no_location') {
-        failed.push({ url: msgUrl, reason: 'no_location', username: message.author.username });
-        continue;
-      }
-
+    while (true) {
+      let batch: Collection<Snowflake, Message>;
       try {
-        await savePin(result);
-        imported++;
+        batch = await source.messages.fetch({
+          limit: 100,
+          ...(lastMessageId ? { before: lastMessageId } : {}),
+        });
       } catch (err) {
-        console.error(`[import] Failed to save pin for message ${message.id}:`, err);
+        console.error(`[import] Failed to fetch messages from ${source.name}:`, err);
+        break;
       }
-    }
 
-    lastMessageId = batch.last()?.id;
-    if (batch.size < 100) break;
+      if (batch.size === 0) break;
+
+      for (const message of batch.values()) {
+        totalScanned++;
+
+        if (filterUserId && message.author.id !== filterUserId) continue;
+
+        const alreadyExists = await pinExistsByMessageId(message.id, message.guildId!);
+        if (alreadyExists) {
+          duplicates++;
+          continue;
+        }
+
+        const result = await processMessageIntoPin(message, { skipTagCheck });
+
+        if (result === 'no_tag') continue;
+
+        const msgUrl = `${DISCORD_MSG_BASE}/${message.guildId}/${message.channelId}/${message.id}`;
+
+        if (result === 'no_image') {
+          // In tag-required mode, no_image means they used the tag but forgot the photo — report it.
+          // In skipTagCheck mode, messages without images are expected and silently skipped.
+          if (!skipTagCheck) {
+            failed.push({ url: msgUrl, reason: 'no_image', username: message.author.username });
+          }
+          continue;
+        }
+
+        if (result === 'no_location') {
+          failed.push({ url: msgUrl, reason: 'no_location', username: message.author.username });
+          continue;
+        }
+
+        try {
+          await savePin(result);
+          imported++;
+        } catch (err) {
+          console.error(`[import] Failed to save pin for message ${message.id}:`, err);
+        }
+      }
+
+      lastMessageId = batch.last()?.id;
+      if (batch.size < 100) break;
+    }
+  }
+
+  // ── Scan main channel (tag required)
+  await scanSource(channel, false);
+
+  // ── Scan "Munch Map" thread if it exists (no tag required — all images are candidates)
+  const MUNCH_MAP_THREAD = 'munch map';
+  let threadScanned = false;
+  try {
+    const [activeThreads, archivedThreads] = await Promise.all([
+      channel.threads.fetchActive(),
+      channel.threads.fetchArchived(),
+    ]);
+    const allThreads = [
+      ...activeThreads.threads.values(),
+      ...archivedThreads.threads.values(),
+    ];
+    const munchMapThread = allThreads.find(
+      (t) => t.name.toLowerCase() === MUNCH_MAP_THREAD,
+    );
+    if (munchMapThread) {
+      threadScanned = true;
+      await scanSource(munchMapThread, true);
+    } else {
+      console.log(`[import] No thread named "${MUNCH_MAP_THREAD}" found in #${channel.name}`);
+    }
+  } catch (err) {
+    console.error('[import] Failed to fetch threads:', err);
   }
 
   console.log(
     `[import] Done. scanned=${totalScanned} imported=${imported} ` +
-    `duplicates=${duplicates} failed=${failed.length}`,
+    `duplicates=${duplicates} failed=${failed.length} threadScanned=${threadScanned}`,
   );
 
   const mapLink = MAP_URL ? `\n🗺️ [View the map](${MAP_URL})` : '';
+  const threadNote = threadScanned ? '\n🧵 Also scanned **Munch Map** thread' : '';
   await interaction.editReply(
     `✅ **Import complete** (${scopeNote}) — scanned ${totalScanned} messages\n` +
     `📍 Imported: **${imported}** new pin${imported !== 1 ? 's' : ''}\n` +
     `⏭️ Already mapped: **${duplicates}**\n` +
     `⚠️ Needs attention: **${failed.length}**` +
+    threadNote +
     mapLink,
   );
 

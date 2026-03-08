@@ -22,6 +22,11 @@ export function getImageAttachments(message: Message): { url: string; contentTyp
 
 export type ProcessResult = MapPin | 'no_tag' | 'no_image' | 'no_location';
 
+export interface ProcessOptions {
+  /** When true, skips the trigger tag check — all messages with images are processed. */
+  skipTagCheck?: boolean;
+}
+
 /**
  * Attempts to build a MapPin from a Discord message.
  * Returns the pin on success or a string reason code on failure.
@@ -31,11 +36,11 @@ export type ProcessResult = MapPin | 'no_tag' | 'no_image' | 'no_location';
  *   2. AOAI text → extracts coords + country/state in one call
  *   3. AOAI vision → image recognition + country/state in one call
  */
-export async function processMessageIntoPin(message: Message): Promise<ProcessResult> {
+export async function processMessageIntoPin(message: Message, options: ProcessOptions = {}): Promise<ProcessResult> {
   if (!message.guildId) return 'no_tag';
 
   const tag = detectTag(message.content);
-  if (!tag) return 'no_tag';
+  if (!tag && !options.skipTagCheck) return 'no_tag';
 
   const images = getImageAttachments(message);
   if (images.length === 0) return 'no_image';
@@ -48,7 +53,7 @@ export async function processMessageIntoPin(message: Message): Promise<ProcessRe
     const location = await reverseGeocodeWithAoai(gpsCoords.lat, gpsCoords.lng);
     if (location) {
       console.log(`[pinProcessor] located via EXIF GPS: ${location.lat},${location.lng}`);
-      return buildPin(message, imageUrl, tag, location);
+      return buildPin(message, imageUrl, tag ?? 'munch-map-thread', location);
     }
   }
 
@@ -59,7 +64,7 @@ export async function processMessageIntoPin(message: Message): Promise<ProcessRe
     const location = await geocodeWithText(truncatedText);
     if (location) {
       console.log(`[pinProcessor] located via AOAI text: ${location.lat},${location.lng}`);
-      return buildPin(message, imageUrl, tag, location);
+      return buildPin(message, imageUrl, tag ?? 'munch-map-thread', location);
     }
   }
 
@@ -67,7 +72,7 @@ export async function processMessageIntoPin(message: Message): Promise<ProcessRe
   const location = await geocodeWithImage(imageUrl);
   if (location) {
     console.log(`[pinProcessor] located via AOAI vision: ${location.lat},${location.lng}`);
-    return buildPin(message, imageUrl, tag, location);
+    return buildPin(message, imageUrl, tag ?? 'munch-map-thread', location);
   }
 
   return 'no_location';
