@@ -10,8 +10,7 @@ if (!token) {
 
 const importCommand = new SlashCommandBuilder()
   .setName('munchhat-import')
-  .setDescription('Scan this channel\'s history and import past #munchhat pins (admin only)')
-  .setDefaultMemberPermissions('0'); // hidden from non-admins in the UI; enforced at runtime too
+  .setDescription('Scan this channel\'s history and import past #munchhat pins (MOD or Manage Server only)');
 
 const client = new Client({
   intents: [
@@ -25,18 +24,28 @@ client.once(Events.ClientReady, async (c) => {
   console.log(`[bot] Logged in as ${c.user.tag}`);
   console.log(`[bot] Watching for tags: ${process.env.MAP_TRIGGER_TAGS ?? '#munchhat,#munchhatchronicles'}`);
 
-  // Register slash commands per-guild (instant availability vs up to 1 hour for global)
-  const rest = new REST().setToken(token!);
-  const commandBody = [importCommand.toJSON()];
+  // Register slash commands in all current guilds
   for (const guild of c.guilds.cache.values()) {
-    try {
-      await rest.put(Routes.applicationGuildCommands(c.user.id, guild.id), { body: commandBody });
-      console.log(`[bot] Slash commands registered for guild ${guild.id}`);
-    } catch (err) {
-      console.error(`[bot] Failed to register commands for guild ${guild.id}:`, err);
-    }
+    await registerCommands(c.user.id, guild.id);
   }
 });
+
+// Register commands when the bot is added to a new guild
+client.on(Events.GuildCreate, async (guild) => {
+  await registerCommands(client.user!.id, guild.id);
+});
+
+async function registerCommands(appId: string, guildId: string): Promise<void> {
+  const rest = new REST().setToken(token!);
+  try {
+    await rest.put(Routes.applicationGuildCommands(appId, guildId), {
+      body: [importCommand.toJSON()],
+    });
+    console.log(`[bot] Slash commands registered for guild ${guildId}`);
+  } catch (err) {
+    console.error(`[bot] Failed to register commands for guild ${guildId}:`, err);
+  }
+}
 
 client.on(Events.MessageCreate, (message) => {
   handleMessage(message).catch((err) => {
