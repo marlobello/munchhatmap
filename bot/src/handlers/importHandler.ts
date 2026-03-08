@@ -101,6 +101,14 @@ export async function handleImport(interaction: ChatInputCommandInteraction): Pr
       // Non-elevated users only import their own messages
       if (filterUserId && message.author.id !== filterUserId) continue;
 
+      // Skip deduplication check early — avoids wasting AOAI calls and
+      // prevents already-mapped messages from appearing in the failure report
+      const alreadyExists = await pinExistsByMessageId(message.id, message.guildId!);
+      if (alreadyExists) {
+        duplicates++;
+        continue;
+      }
+
       const result = await processMessageIntoPin(message);
 
       if (result === 'no_tag') continue;
@@ -114,12 +122,6 @@ export async function handleImport(interaction: ChatInputCommandInteraction): Pr
 
       if (result === 'no_location') {
         failed.push({ url: msgUrl, reason: 'no_location', username: message.author.username });
-        continue;
-      }
-
-      const exists = await pinExistsByMessageId(message.id, message.guildId!);
-      if (exists) {
-        duplicates++;
         continue;
       }
 
