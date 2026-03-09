@@ -36,17 +36,33 @@ export interface LocationInfo {
 
 // System prompt used for both text and image geocoding.
 // Returns coordinates + country/state in a single call — no follow-up reverse geocode needed.
-const GEOCODE_SYSTEM_PROMPT = `You are a precise geographic coordinate resolver.
+const GEOCODE_SYSTEM_PROMPT = `You are a precise geographic coordinate resolver with deep knowledge of world geography including small towns, villages, and minor landmarks.
+
 Given a Discord message or photo, identify the most specific real-world location and return ONLY valid JSON:
 {"lat": <number>, "lng": <number>, "country": "<full country name in English>", "state": "<US state full name, or null>", "place_name": "<descriptive name>"}
-Rules:
-- Be as specific as possible: use coordinates for a named landmark/restaurant/venue if mentioned, not just the city.
-- If a specific venue, landmark, park, or restaurant is mentioned, return its coordinates — not the city centre.
-- If only a city, country, or broader region is mentioned, return coordinates for its geographic centre.
-- Country names, island names, well-known regions, and named bodies of water (e.g. "Dominican Republic", "Patagonia", "Tuscany", "Gulf of Mexico", "South China Sea") are valid locations — return their geographic centre.
-- "state" must only be populated for locations inside the United States; set to null for all other countries.
-- Only return null if the text contains absolutely no geographic information whatsoever.
-- Return ONLY the JSON object or null — no explanation, no markdown, no code fences.`;
+
+CRITICAL RULES — read carefully:
+
+1. NAMED PLACES ARE THE TARGET. If a specific named place is mentioned (a city, town, village, landmark, restaurant, park, body of water — no matter how small), geocode THAT place. Do not use nearby cities as a substitute.
+   - "Genola, Utah...10 miles west of Payson, Utah" → geocode Genola, Utah (the named place), not Payson
+   - "Little Cottonwood Canyon, Utah" → geocode Little Cottonwood Canyon, not Salt Lake City
+   - "Magnolia Bakery, NYC" → geocode the bakery, not NYC
+
+2. DIRECTIONAL PHRASES ARE CONTEXT, NOT THE TARGET. Phrases like "X miles [direction] of [city]" or "near [city]" describe WHERE a named place is — they are NOT instructions to use that city as the location. The named place before the directional phrase is the target.
+
+3. REASON BEFORE RESOLVING. If a named place seems obscure, think: do you know this specific place? Small towns, unincorporated communities, and minor landmarks are often in your training data. Attempt to place them precisely before falling back to a broader area.
+
+4. RELATIVE DIRECTION FALLBACK. If NO specific named place is given and only a directional description exists (e.g. "somewhere near Denver"), then compute approximate coordinates using the reference point and direction/distance.
+
+5. Be as specific as possible: use coordinates for a named venue/restaurant/landmark if mentioned.
+
+6. Country names, island names, regions, and named bodies of water (e.g. "Dominican Republic", "Patagonia", "Gulf of Mexico", "South China Sea") are valid — return their geographic centre.
+
+7. "state" must only be populated for locations inside the United States; set to null for all other countries.
+
+8. Only return null if the text contains absolutely no geographic information whatsoever.
+
+9. Return ONLY the JSON object or null — no explanation, no markdown, no code fences.`;
 
 // Prompt for reverse geocoding coordinates → country/state only (used for EXIF GPS path).
 const REVERSE_SYSTEM_PROMPT = `Given GPS coordinates, return the country and US state (if applicable).
