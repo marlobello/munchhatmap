@@ -25,6 +25,8 @@ export type ProcessResult = MapPin | 'no_tag' | 'no_image' | 'no_location';
 export interface ProcessOptions {
   /** When true, skips the trigger tag check — all messages with images are processed. */
   skipTagCheck?: boolean;
+  /** When provided, debug messages about each geocoding step are pushed into this array. */
+  debugLog?: string[];
 }
 
 /**
@@ -55,6 +57,9 @@ export async function processMessageIntoPin(message: Message, options: ProcessOp
       console.log(`[pinProcessor] located via EXIF GPS: ${location.lat},${location.lng}`);
       return buildPin(message, imageUrl, tag ?? 'munch-map-thread', location);
     }
+    options.debugLog?.push(`Step 1 (EXIF GPS): found GPS ${gpsCoords.lat},${gpsCoords.lng} but reverse geocode returned null`);
+  } else {
+    options.debugLog?.push(`Step 1 (EXIF GPS): no GPS data in image`);
   }
 
   // ── Step 2: AOAI text geocoding — pass the full message, AOAI understands context
@@ -66,6 +71,9 @@ export async function processMessageIntoPin(message: Message, options: ProcessOp
       console.log(`[pinProcessor] located via AOAI text: ${location.lat},${location.lng}`);
       return buildPin(message, imageUrl, tag ?? 'munch-map-thread', location);
     }
+    options.debugLog?.push(`Step 2 (AOAI text): no location found for text: "${truncatedText}"`);
+  } else {
+    options.debugLog?.push(`Step 2 (AOAI text): message text was empty after stripping tags`);
   }
 
   // ── Step 3: AOAI vision (image recognition fallback)
@@ -74,6 +82,7 @@ export async function processMessageIntoPin(message: Message, options: ProcessOp
     console.log(`[pinProcessor] located via AOAI vision: ${location.lat},${location.lng}`);
     return buildPin(message, imageUrl, tag ?? 'munch-map-thread', location);
   }
+  options.debugLog?.push(`Step 3 (AOAI vision): no location identified from image`);
 
   return 'no_location';
 }
@@ -94,5 +103,6 @@ function buildPin(message: Message, imageUrl: string, tag: string, location: Loc
     tagUsed: tag,
     country: location.country,
     state: location.state,
+    place_name: location.place_name,
   };
 }

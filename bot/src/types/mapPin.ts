@@ -13,4 +13,5 @@ export interface MapPin {
   tagUsed?: string;   // e.g. "#munchhat"
   country?: string;   // Country name from reverse geocoding
   state?: string;     // US state name (populated for US pins only)
+  place_name?: string; // Specific place name from geocoding
 }

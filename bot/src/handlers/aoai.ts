@@ -18,7 +18,8 @@ export interface LocationInfo {
   lat: number;
   lng: number;
   country?: string;
-  state?: string; // US state only — null/undefined for non-US locations
+  state?: string;      // US state only — null/undefined for non-US locations
+  place_name?: string; // Descriptive name of the specific location
 }
 
 // System prompt used for both text and image geocoding.

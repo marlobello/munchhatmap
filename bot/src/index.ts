@@ -1,4 +1,4 @@
-import { Client, GatewayIntentBits, Events, REST, Routes, SlashCommandBuilder, ChatInputCommandInteraction } from 'discord.js';
+import { Client, GatewayIntentBits, Events, REST, Routes, SlashCommandBuilder, ChatInputCommandInteraction, ChannelType } from 'discord.js';
 import { handleMessage } from './handlers/messageHandler.js';
 import { handleImport } from './handlers/importHandler.js';
 
@@ -15,7 +15,37 @@ if (!token) {
 
 const importCommand = new SlashCommandBuilder()
   .setName('munchhat-import')
-  .setDescription('Scan this channel\'s history and import past #munchhat pins (MOD or Manage Server only)');
+  .setDescription('Import past #munchhat pins from channel history')
+  .addStringOption((opt) =>
+    opt
+      .setName('lookback')
+      .setDescription('How far back to scan, e.g. 1d, 7d, 2w, 3M, 1y (default: all history)')
+      .setRequired(false),
+  )
+  .addStringOption((opt) =>
+    opt
+      .setName('verbosity')
+      .setDescription('How much detail to include in the output (default: standard)')
+      .setRequired(false)
+      .addChoices(
+        { name: 'standard — summary counts only', value: 'standard' },
+        { name: 'verbose — include links to unmapped messages', value: 'verbose' },
+        { name: 'debug — verbose + AOAI responses for failed geocodes', value: 'debug' },
+      ),
+  )
+  .addStringOption((opt) =>
+    opt
+      .setName('message')
+      .setDescription('Import a single message by its Discord link (e.g. https://discord.com/channels/…)')
+      .setRequired(false),
+  )
+  .addChannelOption((opt) =>
+    opt
+      .setName('channel')
+      .setDescription('Scan a different channel (results posted here)')
+      .setRequired(false)
+      .addChannelTypes(ChannelType.GuildText),
+  );
 
 const client = new Client({
   intents: [
