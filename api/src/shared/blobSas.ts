@@ -79,8 +79,12 @@ export async function generateSasUrl(blobUrl: string): Promise<string> {
     const url = new URL(blobUrl);
     const blobName = url.pathname.replace(`/${CONTAINER_NAME}/`, '');
 
-    const expiresOn = new Date(Date.now() + SAS_TTL_HOURS * 60 * 60 * 1000);
     const delegationKey = await getDelegationKey(client);
+    // Cap SAS expiry at the delegation key's own expiry — Azure rejects tokens that outlive their key.
+    const expiresOn = new Date(Math.min(
+      Date.now() + SAS_TTL_HOURS * 60 * 60 * 1000,
+      delegationKey.signedExpiresOn.getTime(),
+    ));
 
     const sasParams = generateBlobSASQueryParameters(
       {

@@ -11,6 +11,7 @@ import { randomUUID } from 'crypto';
 import { savePin, upsertPin, getPinByMessageId, pinExistsByMessageId } from './db.js';
 import { processMessageIntoPin } from './pinProcessor.js';
 import { geocodeWithText } from './aoai.js';
+import { uploadImageToBlob } from './storage.js';
 
 const MAP_URL = process.env.MAP_URL ?? '';
 const DISCORD_MSG_BASE = 'https://discord.com/channels';
@@ -197,6 +198,11 @@ export async function handleImport(interaction: ChatInputCommandInteraction): Pr
           await interaction.editReply(reply);
           return;
         }
+        const rawDiscordUrl = message.attachments.first()?.url;
+        const contentType = message.attachments.first()?.contentType ?? 'image/jpeg';
+        const imageUrl = rawDiscordUrl
+          ? await uploadImageToBlob(rawDiscordUrl, message.id, contentType)
+          : (existingPin?.imageUrl ?? '');
         const pin = {
           id: existingPin?.id ?? randomUUID(),
           guildId: message.guildId!,
@@ -206,7 +212,7 @@ export async function handleImport(interaction: ChatInputCommandInteraction): Pr
           username: message.author.username,
           lat: location.lat,
           lng: location.lng,
-          imageUrl: message.attachments.first()?.url ?? existingPin?.imageUrl ?? '',
+          imageUrl,
           createdAt: existingPin?.createdAt ?? new Date(message.createdTimestamp).toISOString(),
           caption: message.content || existingPin?.caption,
           tagUsed: existingPin?.tagUsed ?? 'force-location',
