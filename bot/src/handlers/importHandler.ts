@@ -7,8 +7,10 @@ import {
   Message,
   Snowflake,
 } from 'discord.js';
-import { savePin, pinExistsByMessageId } from './db.js';
+import { randomUUID } from 'crypto';
+import { savePin, upsertPin, getPinByMessageId, pinExistsByMessageId } from './db.js';
 import { processMessageIntoPin } from './pinProcessor.js';
+import { geocodeWithText } from './aoai.js';
 
 const MAP_URL = process.env.MAP_URL ?? '';
 const DISCORD_MSG_BASE = 'https://discord.com/channels';
@@ -80,6 +82,23 @@ export async function handleImport(interaction: ChatInputCommandInteraction): Pr
   const lookbackStr = interaction.options.getString('lookback');
   const messageUrl = interaction.options.getString('message');
   const targetChannelOption = interaction.options.getChannel('channel');
+  const forceLocation = interaction.options.getString('force-location');
+
+  // ── Mutual exclusivity checks
+  if (forceLocation && !messageUrl) {
+    await interaction.reply({
+      content: '❌ `force-location` can only be used together with the `message` parameter.',
+      ephemeral: true,
+    });
+    return;
+  }
+  if (messageUrl && lookbackStr) {
+    await interaction.reply({
+      content: '❌ `message` and `lookback` cannot be used together. Use `message` to target a specific post, or `lookback` to scan a time range.',
+      ephemeral: true,
+    });
+    return;
+  }
 
   // Parse lookback into a cutoff date
   let cutoffDate: Date | null = null;
@@ -154,8 +173,50 @@ export async function handleImport(interaction: ChatInputCommandInteraction): Pr
         return;
       }
       const message = await msgChannel.messages.fetch(msgId);
-      const alreadyExists = await pinExistsByMessageId(message.id, message.guildId!);
-      if (alreadyExists) {
+
+      // Check for existing pin (needed for both overwrite and duplicate detection)
+      const existingPin = await getPinByMessageId(message.id, message.guildId!);
+
+      if (forceLocation) {
+        // Force-location mode: geocode the provided string via AOAI, then upsert
+        const debugInfo: string[] = [];
+        if (verbosity === 'debug') debugInfo.push(`Sending to AOAI: "${forceLocation}"`);
+        const location = await geocodeWithText(forceLocation);
+        if (!location) {
+          let reply = `📍 AOAI could not determine coordinates for \`${forceLocation}\`.`;
+          if (verbosity === 'debug' && debugInfo.length) {
+            reply += '\n\n**Debug:**\n' + debugInfo.map((l) => `> ${l}`).join('\n');
+          }
+          await interaction.editReply(reply);
+          return;
+        }
+        const pin = {
+          id: existingPin?.id ?? randomUUID(),
+          guildId: message.guildId!,
+          channelId: message.channelId,
+          messageId: message.id,
+          userId: message.author.id,
+          username: message.author.username,
+          lat: location.lat,
+          lng: location.lng,
+          imageUrl: message.attachments.first()?.url ?? existingPin?.imageUrl ?? '',
+          createdAt: existingPin?.createdAt ?? new Date(message.createdTimestamp).toISOString(),
+          caption: message.content || existingPin?.caption,
+          tagUsed: existingPin?.tagUsed ?? 'force-location',
+          country: location.country,
+          state: location.state ?? undefined,
+          place_name: location.place_name,
+        };
+        await upsertPin(pin);
+        const action = existingPin ? '🔄 Updated' : '✅ Pinned';
+        await interaction.editReply(
+          `${action}! **${pin.lat.toFixed(5)}, ${pin.lng.toFixed(5)}** — ${pin.place_name ?? pin.country ?? forceLocation}`,
+        );
+        return;
+      }
+
+      // Normal single-message mode (no forceLocation)
+      if (existingPin) {
         await interaction.editReply('⏭️ That message is already mapped.');
         return;
       }

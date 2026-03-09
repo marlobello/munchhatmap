@@ -45,6 +45,12 @@ const importCommand = new SlashCommandBuilder()
       .setDescription('Scan a different channel (results posted here)')
       .setRequired(false)
       .addChannelTypes(ChannelType.GuildText),
+  )
+  .addStringOption((opt) =>
+    opt
+      .setName('force-location')
+      .setDescription('Override geocoding with this text — requires message param, overwrites existing pin if present')
+      .setRequired(false),
   );
 
 const client = new Client({
