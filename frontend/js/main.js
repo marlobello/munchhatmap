@@ -86,7 +86,8 @@ function showUser(user) {
   }
 }
 
-const map = L.map('map').setView([20, 0], 2);
+const map = L.map('map', { zoomControl: false }).setView([20, 0], 2);
+L.control.zoom({ position: 'bottomright' }).addTo(map);
 
 L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
   maxZoom: 19,
