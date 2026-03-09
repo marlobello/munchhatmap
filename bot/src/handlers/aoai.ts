@@ -149,13 +149,15 @@ export async function geocodeWithImage(imageUrl: string, onRaw?: (raw: string | 
 /**
  * Reverse geocodes GPS coordinates to country + US state using AOAI.
  * Used for the EXIF GPS path where we already have coordinates.
+ * If onRaw is provided, it is called with the raw AOAI response string (for debug logging).
  */
-export async function reverseGeocodeWithAoai(lat: number, lng: number): Promise<LocationInfo | null> {
+export async function reverseGeocodeWithAoai(lat: number, lng: number, onRaw?: (raw: string | null) => void): Promise<LocationInfo | null> {
   if (!getClient()) { console.warn('[aoai] not configured — skipping reverse geocoding'); return null; }
   const content = await callAoai([
     { role: 'system', content: REVERSE_SYSTEM_PROMPT },
     { role: 'user',   content: `Coordinates: lat=${lat}, lng=${lng}` },
   ], 60);
+  onRaw?.(content);
   const meta = parseReverseResponse(content);
   if (!meta) return { lat, lng };
   console.log(`[aoai] reverse ${lat},${lng} → ${content?.slice(0, 80)}`);

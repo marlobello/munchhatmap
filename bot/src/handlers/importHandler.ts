@@ -245,6 +245,7 @@ export async function handleImport(interaction: ChatInputCommandInteraction): Pr
           place_name: location.place_name,
         };
         await upsertPin(pin);
+        if (verbosity === 'debug') debugInfo.push(`Cosmos DB: ✅ ${existingPin ? 'Updated' : 'Saved'} pin ${pin.id}`);
         const action = existingPin ? '🔄 Updated' : '✅ Pinned';
         let reply = `${action}! **${pin.lat.toFixed(5)}, ${pin.lng.toFixed(5)}** — ${pin.place_name ?? pin.country ?? forceLocation}`;
         if (verbosity === 'debug' && debugInfo.length) {
@@ -279,6 +280,7 @@ export async function handleImport(interaction: ChatInputCommandInteraction): Pr
         if (force && existingPin) {
           result.id = existingPin.id;
           await upsertPin(result);
+          debugInfo.push(`Cosmos DB: ✅ Updated pin ${result.id}`);
           let reply = `🔄 Updated! **${result.lat.toFixed(5)}, ${result.lng.toFixed(5)}** — ${result.place_name ?? result.country ?? 'unknown location'}`;
           if (verbosity === 'debug' && debugInfo.length) {
             reply += '\n\n**Debug:**\n' + debugInfo.map((l) => `> ${l}`).join('\n');
@@ -286,6 +288,7 @@ export async function handleImport(interaction: ChatInputCommandInteraction): Pr
           await interaction.editReply(reply);
         } else {
           await savePin(result);
+          debugInfo.push(`Cosmos DB: ✅ Saved pin ${result.id}`);
           let reply = `✅ Pinned! **${result.lat.toFixed(5)}, ${result.lng.toFixed(5)}** — ${result.place_name ?? result.country ?? 'unknown location'}`;
           if (verbosity === 'debug' && debugInfo.length) {
             reply += '\n\n**Debug:**\n' + debugInfo.map((l) => `> ${l}`).join('\n');

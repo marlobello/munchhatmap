@@ -53,15 +53,26 @@ export async function processMessageIntoPin(message: Message, options: ProcessOp
   // ── Step 1: EXIF GPS (most accurate — trust device GPS above all else)
   const gpsCoords = await extractGps(discordImageUrl);
   if (gpsCoords) {
-    const location = await reverseGeocodeWithAoai(gpsCoords.lat, gpsCoords.lng);
+    let rawReverse: string | null = null;
+    const location = await reverseGeocodeWithAoai(
+      gpsCoords.lat, gpsCoords.lng,
+      options.debugLog ? (r) => { rawReverse = r; } : undefined,
+    );
+    options.debugLog?.push(
+      `Step 1 (EXIF GPS): ${location ? '✅ resolved' : '❌ reverse geocode returned null'}\n` +
+      `  GPS coords: ${gpsCoords.lat}, ${gpsCoords.lng}\n` +
+      `  AOAI user message: "Coordinates: lat=${gpsCoords.lat}, lng=${gpsCoords.lng}"\n` +
+      `  AOAI response: ${rawReverse ?? '(no response / API error)'}` +
+      (location ? `\n  Parsed: ${JSON.stringify({ lat: location.lat, lng: location.lng, country: location.country, state: location.state, place_name: location.place_name })}` : ''),
+    );
     if (location) {
       console.log(`[pinProcessor] located via EXIF GPS: ${location.lat},${location.lng}`);
       const imageUrl = await uploadImageToBlob(discordImageUrl, message.id, contentType);
+      options.debugLog?.push(`Blob upload: ${imageUrl.includes('.blob.core.windows.net') ? `✅ ${imageUrl}` : '⚠️ upload failed — using Discord CDN URL'}`);
       return buildPin(message, imageUrl, tag ?? 'munch-map-thread', location);
     }
-    options.debugLog?.push(`Step 1 (EXIF GPS):\n  GPS coords: ${gpsCoords.lat},${gpsCoords.lng}\n  Reverse geocode returned null`);
   } else {
-    options.debugLog?.push(`Step 1 (EXIF GPS): no GPS data in image`);
+    options.debugLog?.push(`Step 1 (EXIF GPS): no GPS metadata found in image`);
   }
 
   // ── Step 2: AOAI text geocoding — pass the full message, AOAI understands context
@@ -73,16 +84,18 @@ export async function processMessageIntoPin(message: Message, options: ProcessOp
       truncatedText,
       options.debugLog ? (raw) => { rawTextResponse = raw; } : undefined,
     );
+    options.debugLog?.push(
+      `Step 2 (AOAI text): ${location ? '✅ resolved' : '❌ no location found'}\n` +
+      `  AOAI user message: "Discord message: \\"${truncatedText}\\""\n` +
+      `  AOAI response: ${rawTextResponse ?? '(no response / API error)'}` +
+      (location ? `\n  Parsed: ${JSON.stringify({ lat: location.lat, lng: location.lng, country: location.country, state: location.state, place_name: location.place_name })}` : ''),
+    );
     if (location) {
       console.log(`[pinProcessor] located via AOAI text: ${location.lat},${location.lng}`);
       const imageUrl = await uploadImageToBlob(discordImageUrl, message.id, contentType);
+      options.debugLog?.push(`Blob upload: ${imageUrl.includes('.blob.core.windows.net') ? `✅ ${imageUrl}` : '⚠️ upload failed — using Discord CDN URL'}`);
       return buildPin(message, imageUrl, tag ?? 'munch-map-thread', location);
     }
-    options.debugLog?.push(
-      `Step 2 (AOAI text):\n` +
-      `  Text sent: "${truncatedText}"\n` +
-      `  Raw AOAI response: ${rawTextResponse ?? '(no response / API error)'}`,
-    );
   } else {
     options.debugLog?.push(`Step 2 (AOAI text): message text was empty after stripping tags`);
   }
@@ -93,15 +106,18 @@ export async function processMessageIntoPin(message: Message, options: ProcessOp
     discordImageUrl,
     options.debugLog ? (raw) => { rawVisionResponse = raw; } : undefined,
   );
+  options.debugLog?.push(
+    `Step 3 (AOAI vision): ${location ? '✅ resolved' : '❌ no location found'}\n` +
+    `  Image URL: ${discordImageUrl}\n` +
+    `  AOAI response: ${rawVisionResponse ?? '(no response / API error)'}` +
+    (location ? `\n  Parsed: ${JSON.stringify({ lat: location.lat, lng: location.lng, country: location.country, state: location.state, place_name: location.place_name })}` : ''),
+  );
   if (location) {
     console.log(`[pinProcessor] located via AOAI vision: ${location.lat},${location.lng}`);
     const imageUrl = await uploadImageToBlob(discordImageUrl, message.id, contentType);
+    options.debugLog?.push(`Blob upload: ${imageUrl.includes('.blob.core.windows.net') ? `✅ ${imageUrl}` : '⚠️ upload failed — using Discord CDN URL'}`);
     return buildPin(message, imageUrl, tag ?? 'munch-map-thread', location);
   }
-  options.debugLog?.push(
-    `Step 3 (AOAI vision):\n` +
-    `  Raw AOAI response: ${rawVisionResponse ?? '(no response / API error)'}`,
-  );
 
   return 'no_location';
 }
