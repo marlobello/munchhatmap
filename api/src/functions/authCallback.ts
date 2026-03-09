@@ -75,8 +75,9 @@ async function authCallbackHandler(
     return {
       status: 302,
       headers: {
-        Location: frontendUrl,
-        'Set-Cookie': getCookieHeader(sessionToken),
+        // Pass token in URL fragment — avoids third-party cookie blocking in modern browsers.
+        // Fragment is never sent to the server; frontend reads it and stores in localStorage.
+        Location: `${frontendUrl}#token=${sessionToken}`,
       },
     };
   } catch (err) {

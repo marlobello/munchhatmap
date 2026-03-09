@@ -2,12 +2,16 @@
  * main.js — entry point for MunchHat Map frontend.
  * Initialises a Leaflet map, fetches pins from the API, and renders them.
  * Checks Discord OAuth2 session before rendering — shows login gate if unauthenticated.
+ *
+ * Auth strategy: JWT stored in localStorage, sent as Authorization: Bearer header.
+ * This avoids third-party cookie blocking (API is on azurewebsites.net, frontend on custom domain).
  */
 
 import { renderPins } from './map.js';
 import { initStats } from './stats.js';
 
 const API_BASE = window.API_BASE ?? '/api';
+const TOKEN_KEY = 'munchhat_token';
 
 const authGate = document.getElementById('auth-gate');
 const userInfo = document.getElementById('user-info');
@@ -17,15 +21,46 @@ const countEl = document.getElementById('pin-count');
 const loginBtn = document.getElementById('login-btn');
 const logoutBtn = document.getElementById('logout-btn');
 
-// Wire auth URLs to the Function App base (not the SWA domain, which has no /api backend)
 loginBtn.href = `${API_BASE}/auth/login`;
-logoutBtn.href = `${API_BASE}/auth/logout`;
+
+// Handle logout — clear token, redirect handled by server
+logoutBtn.addEventListener('click', (e) => {
+  e.preventDefault();
+  localStorage.removeItem(TOKEN_KEY);
+  window.location.href = `${API_BASE}/auth/logout`;
+});
+
+// Check for token in URL fragment after OAuth callback redirect
+const hashMatch = window.location.hash.match(/[#&]token=([^&]*)/);
+if (hashMatch) {
+  localStorage.setItem(TOKEN_KEY, decodeURIComponent(hashMatch[1]));
+  history.replaceState(null, '', window.location.pathname + window.location.search);
+}
+
+// Clear token on logout redirect
+if (new URLSearchParams(window.location.search).get('logout') === '1') {
+  localStorage.removeItem(TOKEN_KEY);
+  history.replaceState(null, '', window.location.pathname);
+}
+
+/** Makes an authenticated API request with the stored token. */
+async function authedFetch(url) {
+  const token = localStorage.getItem(TOKEN_KEY);
+  return fetch(url, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+}
 
 /** Checks session status. Returns user object if authed, null otherwise. */
 async function checkAuth() {
+  const token = localStorage.getItem(TOKEN_KEY);
+  if (!token) return null;
   try {
-    const res = await fetch(`${API_BASE}/auth/me`, { credentials: 'include' });
-    if (res.status === 401) return null;
+    const res = await authedFetch(`${API_BASE}/auth/me`);
+    if (res.status === 401) {
+      localStorage.removeItem(TOKEN_KEY); // expired token
+      return null;
+    }
     if (!res.ok) return null;
     return res.json();
   } catch {
@@ -33,13 +68,11 @@ async function checkAuth() {
   }
 }
 
-/** Shows the auth gate overlay. */
 function showAuthGate() {
   authGate.classList.remove('hidden');
   countEl.textContent = '';
 }
 
-/** Shows the user pill and hides the auth gate. */
 function showUser(user) {
   authGate.classList.add('hidden');
   userInfo.classList.add('visible');
@@ -53,12 +86,6 @@ function showUser(user) {
   }
 }
 
-async function fetchPins() {
-  const response = await fetch(`${API_BASE}/getPins`, { credentials: 'include' });
-  if (!response.ok) throw new Error(`API returned ${response.status}`);
-  return response.json();
-}
-
 const map = L.map('map').setView([20, 0], 2);
 
 L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -66,7 +93,7 @@ L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
   attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
 }).addTo(map);
 
-// Show auth gate immediately while we check session state
+// Show auth gate while session is checked
 authGate.classList.remove('hidden');
 
 checkAuth().then((user) => {
@@ -76,7 +103,8 @@ checkAuth().then((user) => {
   }
   showUser(user);
 
-  fetchPins()
+  authedFetch(`${API_BASE}/getPins`)
+    .then((r) => { if (!r.ok) throw new Error(`${r.status}`); return r.json(); })
     .then((pins) => {
       renderPins(map, pins);
       countEl.textContent = `${pins.length} pin${pins.length !== 1 ? 's' : ''}`;
@@ -86,5 +114,5 @@ checkAuth().then((user) => {
       countEl.textContent = 'Failed to load pins';
     });
 
-  initStats();
+  initStats(authedFetch, API_BASE);
 });

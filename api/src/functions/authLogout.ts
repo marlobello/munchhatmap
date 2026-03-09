@@ -1,5 +1,4 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
-import { getClearCookieHeader } from '../shared/auth.js';
 
 /**
  * GET /api/auth/logout
@@ -12,12 +11,10 @@ async function authLogoutHandler(
 ): Promise<HttpResponseInit> {
   context.log('authLogout invoked');
   const frontendUrl = process.env.ALLOWED_ORIGIN ?? 'https://munchhatmap.dotheneedful.dev';
+  // Token is stored in localStorage; frontend clears it on logout redirect
   return {
     status: 302,
-    headers: {
-      Location: frontendUrl,
-      'Set-Cookie': getClearCookieHeader(),
-    },
+    headers: { Location: `${frontendUrl}?logout=1` },
   };
 }
 

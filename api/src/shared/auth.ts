@@ -54,11 +54,11 @@ export function parseCookie(cookieHeader: string, name: string): string | null {
   return match ? decodeURIComponent(match[1]) : null;
 }
 
-/** Extracts the validated session user from the request cookie, or returns null. */
+/** Extracts the validated session user from the Authorization Bearer header, or returns null. */
 export async function getSessionUser(request: HttpRequest): Promise<SessionUser | null> {
-  const cookieHeader = request.headers.get('cookie') ?? '';
-  const token = parseCookie(cookieHeader, TOKEN_COOKIE);
-  if (!token) return null;
+  const authHeader = request.headers.get('authorization') ?? '';
+  if (!authHeader.startsWith('Bearer ')) return null;
+  const token = authHeader.slice(7);
   return verifyToken(token);
 }
 

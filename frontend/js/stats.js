@@ -51,15 +51,17 @@ function renderStats(stats) {
   return wrapper;
 }
 
-export function initStats() {
+export function initStats(authedFetch, apiBase) {
+  const base = apiBase ?? window.API_BASE ?? '/api';
   const toggleBtn = document.getElementById('stats-toggle');
   const panel = document.getElementById('stats-panel');
   const closeBtn = document.getElementById('stats-close');
   const content = document.getElementById('stats-content');
+  const doFetch = authedFetch ?? ((url) => fetch(url));
 
   function loadStats() {
     content.replaceChildren(createEl('p', 'stats-empty', 'Loading…'));
-    fetch(`${API_BASE}/getStats`)
+    doFetch(`${base}/getStats`)
       .then((r) => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         return r.json();
