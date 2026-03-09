@@ -28,9 +28,9 @@ const importCommand = new SlashCommandBuilder()
       .setDescription('How much detail to include in the output (default: standard)')
       .setRequired(false)
       .addChoices(
-        { name: 'standard — summary counts only', value: 'standard' },
-        { name: 'verbose — include links to unmapped messages', value: 'verbose' },
-        { name: 'debug — verbose + AOAI responses for failed geocodes', value: 'debug' },
+        { name: 'standard', value: 'standard' },
+        { name: 'verbose', value: 'verbose' },
+        { name: 'debug', value: 'debug' },
       ),
   )
   .addStringOption((opt) =>
@@ -50,6 +50,12 @@ const importCommand = new SlashCommandBuilder()
     opt
       .setName('force-location')
       .setDescription('Override geocoding with this text — requires message param, overwrites existing pin if present')
+      .setRequired(false),
+  )
+  .addBooleanOption((opt) =>
+    opt
+      .setName('force')
+      .setDescription('Re-run the full geocoding pipeline and overwrite the existing pin — requires message param')
       .setRequired(false),
   );
 

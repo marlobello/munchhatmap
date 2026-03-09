@@ -229,30 +229,33 @@ A **5-minute cooldown** applies per user per channel to prevent quota exhaustion
 | Parameter | Type | Description |
 |---|---|---|
 | `lookback` | string | How far back to scan. Accepts a number + unit: `30m`, `6h`, `7d`, `2w`, `3M`, `1y`. Cannot be used with `message`. |
-| `verbosity` | choice | Controls output detail. See table below. Default: `verbose`. |
+| `verbosity` | choice | Controls output detail. See table below. Default: `standard`. |
 | `message` | string | Full Discord message URL to import a single specific post. Cannot be used with `lookback` or `channel`. |
 | `channel` | channel | Scan a different channel but post results here (keeps target channel clutter-free). Cannot be used with `message`. |
 | `force-location` | string | Location string sent directly to AOAI, bypassing all geocoding. Only valid with `message`. Overwrites the pin if it already exists. |
+| `force` | boolean | Re-run the full geocoding pipeline and overwrite the existing pin with the latest result — re-uploads the image to blob storage. Only valid with `message`. Cannot be used with `force-location`. |
 
 #### Verbosity levels
 
 | Level | Output |
 |---|---|
-| `standard` | Counts only: *✅ 3 pinned · ⏭️ 12 already mapped · ⚠️ 2 need attention* |
-| `verbose` | Counts + jump links to every message that couldn't be mapped (default) |
+| `standard` | Counts only: *✅ 3 pinned · ⏭️ 12 already mapped · ⚠️ 2 need attention* (default) |
+| `verbose` | Counts + jump links to every message that couldn't be mapped |
 | `debug` | Everything in verbose, plus for each failed message: the exact text sent to AOAI, the raw AOAI JSON response for each geocoding step, and which steps were attempted |
 
 #### Mutual exclusivity rules
 
 - `force-location` requires `message`
+- `force` requires `message`
+- `force` and `force-location` cannot be combined
 - `message` and `lookback` cannot be combined
 - `message` and `channel` cannot be combined (the message URL already encodes the channel)
 
 #### Example usages
 
 ```
-# Quick weekly catch-up — counts only
-/munchhat-import lookback:7d verbosity:standard
+# Quick weekly catch-up — counts only (default verbosity)
+/munchhat-import lookback:7d
 
 # Scan #munchhat from a mod channel, show failures with jump links
 /munchhat-import channel:#munchhat lookback:30d verbosity:verbose
@@ -262,6 +265,9 @@ A **5-minute cooldown** applies per user per channel to prevent quota exhaustion
 
 # Force a location for a post with no useful text (e.g. a photo-only post)
 /munchhat-import message:https://discord.com/channels/734.../1480... force-location:Eiffel Tower, Paris France
+
+# Re-map a post after the message was edited (re-runs geocoding, re-uploads image)
+/munchhat-import message:https://discord.com/channels/734.../1480... force:True
 ```
 
 ---

@@ -79,16 +79,31 @@ export async function handleImport(interaction: ChatInputCommandInteraction): Pr
   const filterUserId = elevated ? null : interaction.user.id;
 
   // ── Parse options
-  const verbosity = (interaction.options.getString('verbosity') ?? 'verbose') as Verbosity;
+  const verbosity = (interaction.options.getString('verbosity') ?? 'standard') as Verbosity;
   const lookbackStr = interaction.options.getString('lookback');
   const messageUrl = interaction.options.getString('message');
   const targetChannelOption = interaction.options.getChannel('channel');
   const forceLocation = interaction.options.getString('force-location');
+  const force = interaction.options.getBoolean('force') ?? false;
 
   // ── Mutual exclusivity checks
   if (forceLocation && !messageUrl) {
     await interaction.reply({
       content: '❌ `force-location` can only be used together with the `message` parameter.',
+      ephemeral: true,
+    });
+    return;
+  }
+  if (force && forceLocation) {
+    await interaction.reply({
+      content: '❌ `force` and `force-location` cannot be used together. Use `force` to re-run geocoding, or `force-location` to override it with a specific place.',
+      ephemeral: true,
+    });
+    return;
+  }
+  if (force && !messageUrl) {
+    await interaction.reply({
+      content: '❌ `force` can only be used together with the `message` parameter.',
       ephemeral: true,
     });
     return;
@@ -229,8 +244,8 @@ export async function handleImport(interaction: ChatInputCommandInteraction): Pr
       }
 
       // Normal single-message mode (no forceLocation)
-      if (existingPin) {
-        await interaction.editReply('⏭️ That message is already mapped.');
+      if (existingPin && !force) {
+        await interaction.editReply('⏭️ That message is already mapped. Use `force:True` to overwrite it.');
         return;
       }
       const debugInfo: string[] = [];
@@ -250,10 +265,18 @@ export async function handleImport(interaction: ChatInputCommandInteraction): Pr
         }
         await interaction.editReply(reply);
       } else {
-        await savePin(result);
-        await interaction.editReply(
-          `✅ Pinned! **${result.lat.toFixed(5)}, ${result.lng.toFixed(5)}** — ${result.place_name ?? result.country ?? 'unknown location'}`,
-        );
+        if (force && existingPin) {
+          result.id = existingPin.id;
+          await upsertPin(result);
+          await interaction.editReply(
+            `🔄 Updated! **${result.lat.toFixed(5)}, ${result.lng.toFixed(5)}** — ${result.place_name ?? result.country ?? 'unknown location'}`,
+          );
+        } else {
+          await savePin(result);
+          await interaction.editReply(
+            `✅ Pinned! **${result.lat.toFixed(5)}, ${result.lng.toFixed(5)}** — ${result.place_name ?? result.country ?? 'unknown location'}`,
+          );
+        }
       }
     } catch (err) {
       console.error('[import] Single message import failed:', err);
