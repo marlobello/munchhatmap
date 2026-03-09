@@ -95,6 +95,7 @@ module functions 'modules/functions.bicep' = {
     keyVaultUri: keyVault.outputs.keyVaultUri
     functionIdentityId: identities.outputs.functionIdentityId
     functionClientId: identities.outputs.functionClientId
+    cosmosEndpoint: cosmosDb.outputs.cosmosEndpoint
     allowedOrigin: 'https://${staticWebAppCustomDomain}'
   }
 }
@@ -125,10 +126,62 @@ module containerApp 'modules/containerapp.bicep' = {
     botIdentityId: identities.outputs.botIdentityId
     storageAccountName: functions.outputs.storageAccountName
     botClientId: identities.outputs.botClientId
+    cosmosEndpoint: cosmosDb.outputs.cosmosEndpoint
+    openAiEndpoint: openAi.outputs.endpoint
   }
 }
 
-// ─── Role Assignments: Blob Storage ─────────────────────────────────────────
+// ─── Role Assignments: Cosmos DB ─────────────────────────────────────────────
+// Built-in data plane RBAC roles (not Azure ARM roles):
+//   00000000-0000-0000-0000-000000000001 = Cosmos DB Built-in Data Reader
+//   00000000-0000-0000-0000-000000000002 = Cosmos DB Built-in Data Contributor
+
+var cosmosContributorRoleId = '00000000-0000-0000-0000-000000000002'
+var cosmosReaderRoleId      = '00000000-0000-0000-0000-000000000001'
+
+resource cosmosAccount 'Microsoft.DocumentDB/databaseAccounts@2024-05-15' existing = {
+  name: cosmosDb.outputs.cosmosAccountName
+}
+
+resource botCosmosRole 'Microsoft.DocumentDB/databaseAccounts/sqlRoleAssignments@2024-05-15' = {
+  name: guid(cosmosAccount.id, identities.outputs.botIdentityPrincipalId, cosmosContributorRoleId)
+  parent: cosmosAccount
+  properties: {
+    roleDefinitionId: '${cosmosAccount.id}/sqlRoleDefinitions/${cosmosContributorRoleId}'
+    principalId: identities.outputs.botIdentityPrincipalId
+    scope: cosmosAccount.id
+  }
+}
+
+resource apiCosmosRole 'Microsoft.DocumentDB/databaseAccounts/sqlRoleAssignments@2024-05-15' = {
+  name: guid(cosmosAccount.id, identities.outputs.functionIdentityPrincipalId, cosmosReaderRoleId)
+  parent: cosmosAccount
+  properties: {
+    roleDefinitionId: '${cosmosAccount.id}/sqlRoleDefinitions/${cosmosReaderRoleId}'
+    principalId: identities.outputs.functionIdentityPrincipalId
+    scope: cosmosAccount.id
+  }
+}
+
+// ─── Role Assignments: Azure OpenAI ──────────────────────────────────────────
+// "Cognitive Services OpenAI User" — allows calling the OpenAI inference API
+
+var cognitiveServicesOpenAiUserRole = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '5e0bd9bd-7b93-4f28-af87-19fc36ad61bd')
+
+resource openAiAccount 'Microsoft.CognitiveServices/accounts@2023-05-01' existing = {
+  name: openAi.outputs.accountName
+  scope: resourceGroup()
+}
+
+resource botOpenAiRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(openAiAccount.id, identities.outputs.botIdentityPrincipalId, cognitiveServicesOpenAiUserRole)
+  scope: openAiAccount
+  properties: {
+    roleDefinitionId: cognitiveServicesOpenAiUserRole
+    principalId: identities.outputs.botIdentityPrincipalId
+    principalType: 'ServicePrincipal'
+  }
+}
 // Bot identity → Storage Blob Data Contributor (upload pin images)
 // API identity → Storage Blob Delegator + Storage Blob Data Reader (generate SAS + read)
 

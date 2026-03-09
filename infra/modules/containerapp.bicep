@@ -18,6 +18,10 @@ param keyVaultUri string
 // Pre-created managed identity (from identities module)
 param botIdentityId string
 
+// Azure resource endpoints — not secrets, passed as plain env vars
+param cosmosEndpoint string
+param openAiEndpoint string
+
 // Storage account name for blob image uploads (managed identity auth — no key needed)
 param storageAccountName string
 param imageStorageContainer string = 'pin-images'
@@ -58,26 +62,8 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
           keyVaultUrl: '${keyVaultUri}secrets/discord-bot-token'
           identity: botIdentityId
         }
-        {
-          name: 'cosmos-db-endpoint'
-          keyVaultUrl: '${keyVaultUri}secrets/cosmos-db-endpoint'
-          identity: botIdentityId
-        }
-        {
-          name: 'cosmos-db-key'
-          keyVaultUrl: '${keyVaultUri}secrets/cosmos-db-key'
-          identity: botIdentityId
-        }
-        {
-          name: 'aoai-endpoint'
-          keyVaultUrl: '${keyVaultUri}secrets/aoai-endpoint'
-          identity: botIdentityId
-        }
-        {
-          name: 'aoai-key'
-          keyVaultUrl: '${keyVaultUri}secrets/aoai-key'
-          identity: botIdentityId
-        }
+        // cosmos-db-endpoint, cosmos-db-key, aoai-endpoint, aoai-key removed:
+        // Cosmos DB and Azure OpenAI are now accessed via managed identity (no keys)
       ]
       registries: [] // Public ghcr.io image — no registry credentials needed for public images
     }
@@ -97,12 +83,9 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'COSMOS_DB_ENDPOINT'
-              secretRef: 'cosmos-db-endpoint'
+              value: cosmosEndpoint
             }
-            {
-              name: 'COSMOS_DB_KEY'
-              secretRef: 'cosmos-db-key'
-            }
+            // COSMOS_DB_KEY removed — Cosmos DB accessed via managed identity
             {
               name: 'MAP_TRIGGER_TAGS'
               value: '#munchhat,#munchhatchronicles'
@@ -114,12 +97,9 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
             }
             {
               name: 'AZURE_OPENAI_ENDPOINT'
-              secretRef: 'aoai-endpoint'
+              value: openAiEndpoint
             }
-            {
-              name: 'AZURE_OPENAI_API_KEY'
-              secretRef: 'aoai-key'
-            }
+            // AZURE_OPENAI_API_KEY removed — Azure OpenAI accessed via managed identity
             {
               name: 'AZURE_OPENAI_DEPLOYMENT'
               value: 'gpt-4o-mini'

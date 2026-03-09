@@ -1,15 +1,27 @@
 import { AzureOpenAI } from 'openai';
+import { DefaultAzureCredential, getBearerTokenProvider } from '@azure/identity';
 
 const endpoint   = process.env.AZURE_OPENAI_ENDPOINT ?? '';
-const apiKey     = process.env.AZURE_OPENAI_API_KEY   ?? '';
+const apiKey     = process.env.AZURE_OPENAI_API_KEY   ?? ''; // only used for local dev
 const deployment = process.env.AZURE_OPENAI_DEPLOYMENT ?? 'gpt-4o-mini';
 
 let _client: AzureOpenAI | null = null;
 
 function getClient(): AzureOpenAI | null {
-  if (!endpoint || !apiKey) return null;
+  if (!endpoint) return null;
   if (!_client) {
-    _client = new AzureOpenAI({ endpoint, apiKey, apiVersion: '2024-10-21', deployment });
+    if (apiKey) {
+      // Local dev: use API key if provided
+      _client = new AzureOpenAI({ endpoint, apiKey, apiVersion: '2024-10-21', deployment });
+    } else {
+      // Production: use managed identity token provider
+      const credential = new DefaultAzureCredential();
+      const azureADTokenProvider = getBearerTokenProvider(
+        credential,
+        'https://cognitiveservices.azure.com/.default',
+      );
+      _client = new AzureOpenAI({ endpoint, azureADTokenProvider, apiVersion: '2024-10-21', deployment });
+    }
   }
   return _client;
 }

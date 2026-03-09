@@ -1,4 +1,5 @@
 import { CosmosClient } from '@azure/cosmos';
+import { DefaultAzureCredential } from '@azure/identity';
 import type { MapPin } from './types.js';
 
 const DB_NAME = 'munchhatmap';
@@ -9,11 +10,11 @@ let _client: CosmosClient | null = null;
 function getClient(): CosmosClient {
   if (_client) return _client;
   const endpoint = process.env.COSMOS_DB_ENDPOINT;
+  if (!endpoint) throw new Error('COSMOS_DB_ENDPOINT environment variable is required');
   const key = process.env.COSMOS_DB_KEY;
-  if (!endpoint || !key) {
-    throw new Error('COSMOS_DB_ENDPOINT and COSMOS_DB_KEY environment variables are required');
-  }
-  _client = new CosmosClient({ endpoint, key });
+  _client = key
+    ? new CosmosClient({ endpoint, key }) // local dev fallback
+    : new CosmosClient({ endpoint, aadCredentials: new DefaultAzureCredential() });
   return _client;
 }
 
