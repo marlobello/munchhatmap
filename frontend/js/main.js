@@ -14,6 +14,12 @@ const userInfo = document.getElementById('user-info');
 const userAvatar = document.getElementById('user-avatar');
 const userName = document.getElementById('user-name');
 const countEl = document.getElementById('pin-count');
+const loginBtn = document.getElementById('login-btn');
+const logoutBtn = document.getElementById('logout-btn');
+
+// Wire auth URLs to the Function App base (not the SWA domain, which has no /api backend)
+loginBtn.href = `${API_BASE}/auth/login`;
+logoutBtn.href = `${API_BASE}/auth/logout`;
 
 /** Checks session status. Returns user object if authed, null otherwise. */
 async function checkAuth() {
