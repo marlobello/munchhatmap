@@ -122,6 +122,49 @@ module containerApp 'modules/containerapp.bicep' = {
     logAnalyticsWorkspaceKey: logAnalytics.outputs.primarySharedKey
     keyVaultUri: keyVault.outputs.keyVaultUri
     botIdentityId: identities.outputs.botIdentityId
+    storageAccountName: functions.outputs.storageAccountName
+  }
+}
+
+// ─── Role Assignments: Blob Storage ─────────────────────────────────────────
+// Bot identity → Storage Blob Data Contributor (upload pin images)
+// API identity → Storage Blob Delegator + Storage Blob Data Reader (generate SAS + read)
+
+var storageBlobDataContributorRole = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'ba92f5b4-2d11-453d-a403-e96b0029c9fe')
+var storageBlobDataReaderRole      = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '2a2b9908-6ea1-4ae2-8e65-a410df84e7d1')
+var storageBlobDelegatorRole       = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'db58b8e5-c6ad-4a2a-8342-4190687cbf4a')
+
+resource storageAccount 'Microsoft.Storage/storageAccounts@2023-05-01' existing = {
+  name: functions.outputs.storageAccountName
+}
+
+resource botBlobContributor 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(storageAccount.id, identities.outputs.botIdentityPrincipalId, storageBlobDataContributorRole)
+  scope: storageAccount
+  properties: {
+    roleDefinitionId: storageBlobDataContributorRole
+    principalId: identities.outputs.botIdentityPrincipalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+resource apiBlobReader 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(storageAccount.id, identities.outputs.functionIdentityPrincipalId, storageBlobDataReaderRole)
+  scope: storageAccount
+  properties: {
+    roleDefinitionId: storageBlobDataReaderRole
+    principalId: identities.outputs.functionIdentityPrincipalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+resource apiBlobDelegator 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(storageAccount.id, identities.outputs.functionIdentityPrincipalId, storageBlobDelegatorRole)
+  scope: storageAccount
+  properties: {
+    roleDefinitionId: storageBlobDelegatorRole
+    principalId: identities.outputs.functionIdentityPrincipalId
+    principalType: 'ServicePrincipal'
   }
 }
 

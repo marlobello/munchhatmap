@@ -4,6 +4,7 @@ import { extractGps } from './exif.js';
 import { geocodeWithText, geocodeWithImage, reverseGeocodeWithAoai } from './aoai.js';
 import type { LocationInfo } from './aoai.js';
 import type { MapPin } from '../types/mapPin.js';
+import { uploadImageToBlob } from './storage.js';
 
 export const TRIGGER_TAGS = (process.env.MAP_TRIGGER_TAGS ?? '#munchhat,#munchhatchronicles')
   .split(',')
@@ -47,14 +48,15 @@ export async function processMessageIntoPin(message: Message, options: ProcessOp
   const images = getImageAttachments(message);
   if (images.length === 0) return 'no_image';
 
-  const imageUrl = images[0].url;
+  const { url: discordImageUrl, contentType } = images[0];
 
   // ── Step 1: EXIF GPS (most accurate — trust device GPS above all else)
-  const gpsCoords = await extractGps(imageUrl);
+  const gpsCoords = await extractGps(discordImageUrl);
   if (gpsCoords) {
     const location = await reverseGeocodeWithAoai(gpsCoords.lat, gpsCoords.lng);
     if (location) {
       console.log(`[pinProcessor] located via EXIF GPS: ${location.lat},${location.lng}`);
+      const imageUrl = await uploadImageToBlob(discordImageUrl, message.id, contentType);
       return buildPin(message, imageUrl, tag ?? 'munch-map-thread', location);
     }
     options.debugLog?.push(`Step 1 (EXIF GPS):\n  GPS coords: ${gpsCoords.lat},${gpsCoords.lng}\n  Reverse geocode returned null`);
@@ -73,6 +75,7 @@ export async function processMessageIntoPin(message: Message, options: ProcessOp
     );
     if (location) {
       console.log(`[pinProcessor] located via AOAI text: ${location.lat},${location.lng}`);
+      const imageUrl = await uploadImageToBlob(discordImageUrl, message.id, contentType);
       return buildPin(message, imageUrl, tag ?? 'munch-map-thread', location);
     }
     options.debugLog?.push(
@@ -87,11 +90,12 @@ export async function processMessageIntoPin(message: Message, options: ProcessOp
   // ── Step 3: AOAI vision (image recognition fallback)
   let rawVisionResponse: string | null = null;
   const location = await geocodeWithImage(
-    imageUrl,
+    discordImageUrl,
     options.debugLog ? (raw) => { rawVisionResponse = raw; } : undefined,
   );
   if (location) {
     console.log(`[pinProcessor] located via AOAI vision: ${location.lat},${location.lng}`);
+    const imageUrl = await uploadImageToBlob(discordImageUrl, message.id, contentType);
     return buildPin(message, imageUrl, tag ?? 'munch-map-thread', location);
   }
   options.debugLog?.push(

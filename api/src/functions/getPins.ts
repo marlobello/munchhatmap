@@ -1,6 +1,6 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import { getPins } from '../shared/db.js';
-import { refreshDiscordUrls } from '../shared/discordRefresh.js';
+import { generateSasUrl } from '../shared/blobSas.js';
 
 /**
  * GET /api/getPins
@@ -27,16 +27,15 @@ async function getPinsHandler(
   try {
     const pins = await getPins({ guildId, channelId, userId });
 
-    // Refresh expiring Discord CDN URLs before returning to the client
-    const imageUrls = pins.map((p) => p.imageUrl).filter((u): u is string => Boolean(u));
-    if (imageUrls.length > 0) {
-      const refreshed = await refreshDiscordUrls(imageUrls);
-      for (const pin of pins) {
+    // Replace private blob URLs with time-limited SAS URLs so the browser can load images.
+    // Discord CDN URLs (pre-migration pins) are passed through unchanged.
+    await Promise.all(
+      pins.map(async (pin) => {
         if (pin.imageUrl) {
-          pin.imageUrl = refreshed.get(pin.imageUrl) ?? pin.imageUrl;
+          pin.imageUrl = await generateSasUrl(pin.imageUrl);
         }
-      }
-    }
+      }),
+    );
 
     return {
       status: 200,

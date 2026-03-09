@@ -18,6 +18,10 @@ param keyVaultUri string
 // Pre-created managed identity (from identities module)
 param botIdentityId string
 
+// Storage account name for blob image uploads (managed identity auth — no key needed)
+param storageAccountName string
+param imageStorageContainer string = 'pin-images'
+
 resource containerAppEnv 'Microsoft.App/managedEnvironments@2024-03-01' = {
   name: '${name}-env'
   location: location
@@ -117,6 +121,15 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'AZURE_OPENAI_DEPLOYMENT'
               value: 'gpt-4o-mini'
+            }
+            // Blob storage — managed identity auth; only account name needed (no key)
+            {
+              name: 'AZURE_STORAGE_ACCOUNT_NAME'
+              value: storageAccountName
+            }
+            {
+              name: 'IMAGE_STORAGE_CONTAINER'
+              value: imageStorageContainer
             }
           ]
         }
