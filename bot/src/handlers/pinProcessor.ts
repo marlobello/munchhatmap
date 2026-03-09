@@ -57,7 +57,7 @@ export async function processMessageIntoPin(message: Message, options: ProcessOp
       console.log(`[pinProcessor] located via EXIF GPS: ${location.lat},${location.lng}`);
       return buildPin(message, imageUrl, tag ?? 'munch-map-thread', location);
     }
-    options.debugLog?.push(`Step 1 (EXIF GPS): found GPS ${gpsCoords.lat},${gpsCoords.lng} but reverse geocode returned null`);
+    options.debugLog?.push(`Step 1 (EXIF GPS):\n  GPS coords: ${gpsCoords.lat},${gpsCoords.lng}\n  Reverse geocode returned null`);
   } else {
     options.debugLog?.push(`Step 1 (EXIF GPS): no GPS data in image`);
   }
@@ -66,23 +66,38 @@ export async function processMessageIntoPin(message: Message, options: ProcessOp
   const messageText = message.content.replace(/#munchhat(chronicles)?/gi, '').trim();
   const truncatedText = messageText.slice(0, 300);
   if (truncatedText.length > 0) {
-    const location = await geocodeWithText(truncatedText);
+    let rawTextResponse: string | null = null;
+    const location = await geocodeWithText(
+      truncatedText,
+      options.debugLog ? (raw) => { rawTextResponse = raw; } : undefined,
+    );
     if (location) {
       console.log(`[pinProcessor] located via AOAI text: ${location.lat},${location.lng}`);
       return buildPin(message, imageUrl, tag ?? 'munch-map-thread', location);
     }
-    options.debugLog?.push(`Step 2 (AOAI text): no location found for text: "${truncatedText}"`);
+    options.debugLog?.push(
+      `Step 2 (AOAI text):\n` +
+      `  Text sent: "${truncatedText}"\n` +
+      `  Raw AOAI response: ${rawTextResponse ?? '(no response / API error)'}`,
+    );
   } else {
     options.debugLog?.push(`Step 2 (AOAI text): message text was empty after stripping tags`);
   }
 
   // ── Step 3: AOAI vision (image recognition fallback)
-  const location = await geocodeWithImage(imageUrl);
+  let rawVisionResponse: string | null = null;
+  const location = await geocodeWithImage(
+    imageUrl,
+    options.debugLog ? (raw) => { rawVisionResponse = raw; } : undefined,
+  );
   if (location) {
     console.log(`[pinProcessor] located via AOAI vision: ${location.lat},${location.lng}`);
     return buildPin(message, imageUrl, tag ?? 'munch-map-thread', location);
   }
-  options.debugLog?.push(`Step 3 (AOAI vision): no location identified from image`);
+  options.debugLog?.push(
+    `Step 3 (AOAI vision):\n` +
+    `  Raw AOAI response: ${rawVisionResponse ?? '(no response / API error)'}`,
+  );
 
   return 'no_location';
 }

@@ -29,9 +29,11 @@ Given a Discord message or photo, identify the most specific real-world location
 {"lat": <number>, "lng": <number>, "country": "<full country name in English>", "state": "<US state full name, or null>", "place_name": "<descriptive name>"}
 Rules:
 - Be as specific as possible: use coordinates for a named landmark/restaurant/venue if mentioned, not just the city.
-- If only a city or region is mentioned, return coordinates for its centre.
+- If a specific venue, landmark, park, or restaurant is mentioned, return its coordinates — not the city centre.
+- If only a city, country, or broader region is mentioned, return coordinates for its geographic centre.
+- Country names, island names, and well-known regions (e.g. "Dominican Republic", "Patagonia", "Tuscany") are valid locations — return their geographic centre.
 - "state" must only be populated for locations inside the United States; set to null for all other countries.
-- If you genuinely cannot determine any location, return exactly: null
+- Only return null if the text contains absolutely no geographic information whatsoever.
 - Return ONLY the JSON object or null — no explanation, no markdown, no code fences.`;
 
 // Prompt for reverse geocoding coordinates → country/state only (used for EXIF GPS path).
@@ -45,7 +47,7 @@ function parseGeocodeResponse(content: string | null): LocationInfo | null {
   const trimmed = content.trim();
   if (trimmed === 'null') return null;
   try {
-    const parsed = JSON.parse(trimmed) as { lat?: unknown; lng?: unknown; country?: unknown; state?: unknown };
+    const parsed = JSON.parse(trimmed) as { lat?: unknown; lng?: unknown; country?: unknown; state?: unknown; place_name?: unknown };
     const lat = Number(parsed.lat);
     const lng = Number(parsed.lng);
     if (isNaN(lat) || isNaN(lng)) return null;
@@ -54,8 +56,9 @@ function parseGeocodeResponse(content: string | null): LocationInfo | null {
     return {
       lat,
       lng,
-      country: typeof parsed.country === 'string' ? parsed.country : undefined,
-      state:   typeof parsed.state   === 'string' ? parsed.state   : undefined,
+      country:    typeof parsed.country    === 'string' ? parsed.country    : undefined,
+      state:      typeof parsed.state      === 'string' ? parsed.state      : undefined,
+      place_name: typeof parsed.place_name === 'string' ? parsed.place_name : undefined,
     };
   } catch {
     return null;
@@ -91,15 +94,17 @@ async function callAoai(messages: Parameters<AzureOpenAI['chat']['completions'][
 
 /**
  * Geocodes a Discord message text using AOAI.
- * Returns full LocationInfo (lat, lng, country, state) in a single call.
+ * Returns full LocationInfo (lat, lng, country, state, place_name) in a single call.
+ * If onRaw is provided, it is called with the raw AOAI response string (for debug logging).
  */
-export async function geocodeWithText(messageText: string): Promise<LocationInfo | null> {
+export async function geocodeWithText(messageText: string, onRaw?: (raw: string | null) => void): Promise<LocationInfo | null> {
   if (!getClient()) { console.warn('[aoai] not configured — skipping text geocoding'); return null; }
   if (!messageText.trim()) return null;
   const content = await callAoai([
     { role: 'system', content: GEOCODE_SYSTEM_PROMPT },
     { role: 'user',   content: `Discord message: "${messageText}"` },
   ]);
+  onRaw?.(content);
   const result = parseGeocodeResponse(content);
   console.log(`[aoai] text "${messageText.slice(0, 60)}" → ${content?.slice(0, 100)}`);
   return result;
@@ -107,9 +112,10 @@ export async function geocodeWithText(messageText: string): Promise<LocationInfo
 
 /**
  * Geocodes an image URL using AOAI vision.
- * Returns full LocationInfo (lat, lng, country, state) in a single call.
+ * Returns full LocationInfo (lat, lng, country, state, place_name) in a single call.
+ * If onRaw is provided, it is called with the raw AOAI response string (for debug logging).
  */
-export async function geocodeWithImage(imageUrl: string): Promise<LocationInfo | null> {
+export async function geocodeWithImage(imageUrl: string, onRaw?: (raw: string | null) => void): Promise<LocationInfo | null> {
   if (!getClient()) { console.warn('[aoai] not configured — skipping image geocoding'); return null; }
   const content = await callAoai([
     { role: 'system', content: GEOCODE_SYSTEM_PROMPT },
@@ -121,6 +127,7 @@ export async function geocodeWithImage(imageUrl: string): Promise<LocationInfo |
       ],
     },
   ]);
+  onRaw?.(content);
   const result = parseGeocodeResponse(content);
   console.log(`[aoai] image → ${content?.slice(0, 100)}`);
   return result;
