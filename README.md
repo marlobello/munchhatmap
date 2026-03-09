@@ -297,6 +297,8 @@ interface MapPin {
 }
 ```
 
+Images are permanently stored in **Azure Blob Storage** (`pin-images` container) at pin creation time. The API generates short-lived User Delegation SAS URLs on each `getPins` call so the browser can load them directly — no Discord CDN dependency in the read path.
+
 ---
 
 ## Frontend Features
