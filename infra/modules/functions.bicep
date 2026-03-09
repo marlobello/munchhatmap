@@ -10,6 +10,11 @@ param allowedOrigin string = 'https://munchhatmap.dotheneedful.dev'
 // Azure resource endpoints — not secrets, passed as plain env vars
 param cosmosEndpoint string
 
+// Discord OAuth2 plain env vars
+param discordClientId string
+param discordGuildId string
+param discordRedirectUri string
+
 // Pre-created managed identity (from identities module)
 param functionIdentityId string
 param functionClientId string
@@ -120,11 +125,34 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
           name: 'AZURE_CLIENT_ID'
           value: functionClientId
         }
+        // Discord OAuth2 — plain env vars (not secrets)
+        {
+          name: 'DISCORD_CLIENT_ID'
+          value: discordClientId
+        }
+        {
+          name: 'DISCORD_GUILD_ID'
+          value: discordGuildId
+        }
+        {
+          name: 'DISCORD_REDIRECT_URI'
+          value: discordRedirectUri
+        }
+        // Discord OAuth2 client secret and JWT session secret — from Key Vault
+        {
+          name: 'DISCORD_CLIENT_SECRET'
+          value: '@Microsoft.KeyVault(VaultName=${split(keyVaultUri, '/')[2]};SecretName=discord-oauth-client-secret)'
+        }
+        {
+          name: 'SESSION_SECRET'
+          value: '@Microsoft.KeyVault(VaultName=${split(keyVaultUri, '/')[2]};SecretName=session-secret)'
+        }
       ]
       cors: {
         allowedOrigins: [
           allowedOrigin
         ]
+        supportCredentials: true // required for cross-origin cookie auth (SameSite=None)
       }
     }
   }

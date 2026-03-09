@@ -3,20 +3,33 @@ import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/fu
 /**
  * GET /api/auth/login
  *
- * Phase 2 placeholder: initiates Discord OAuth2 login flow.
- * Will redirect to Discord's OAuth2 authorization URL with guild membership scope.
- *
- * TODO (Phase 2): construct Discord OAuth2 URL and redirect.
+ * Redirects the browser to Discord's OAuth2 authorization page.
+ * Scopes: identify (user profile) + guilds.members.read (guild membership check).
  */
 async function authLoginHandler(
   _request: HttpRequest,
   context: InvocationContext,
 ): Promise<HttpResponseInit> {
-  context.log('authLogin invoked (placeholder)');
+  context.log('authLogin invoked');
+
+  const clientId = process.env.DISCORD_CLIENT_ID;
+  const redirectUri = process.env.DISCORD_REDIRECT_URI;
+
+  if (!clientId || !redirectUri) {
+    context.error('Missing DISCORD_CLIENT_ID or DISCORD_REDIRECT_URI');
+    return { status: 500, body: JSON.stringify({ error: 'Auth not configured' }) };
+  }
+
+  const params = new URLSearchParams({
+    client_id: clientId,
+    redirect_uri: redirectUri,
+    response_type: 'code',
+    scope: 'identify guilds.members.read',
+  });
+
   return {
-    status: 501,
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ message: 'Discord OAuth2 login not yet implemented (Phase 2)' }),
+    status: 302,
+    headers: { Location: `https://discord.com/oauth2/authorize?${params.toString()}` },
   };
 }
 

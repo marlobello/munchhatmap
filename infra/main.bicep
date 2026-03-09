@@ -27,6 +27,12 @@ param repositoryBranch string = 'main'
 @description('Custom domain for the Static Web App (e.g. munchhatmap.dotheneedful.dev) — leave empty to skip')
 param staticWebAppCustomDomain string = 'munchhatmap.dotheneedful.dev'
 
+@description('Discord OAuth2 application Client ID (from Discord Developer Portal → OAuth2)')
+param discordClientId string = ''
+
+@description('Discord guild ID for membership verification')
+param discordGuildId string = '734095597342294107'
+
 var prefix = 'munchhatmap'
 var tags = {
   project: 'munchhatmap'
@@ -97,6 +103,9 @@ module functions 'modules/functions.bicep' = {
     functionClientId: identities.outputs.functionClientId
     cosmosEndpoint: cosmosDb.outputs.cosmosEndpoint
     allowedOrigin: 'https://${staticWebAppCustomDomain}'
+    discordClientId: discordClientId
+    discordGuildId: discordGuildId
+    discordRedirectUri: 'https://${staticWebAppCustomDomain}/api/auth/callback'
   }
 }
 

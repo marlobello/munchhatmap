@@ -1,6 +1,7 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import { getPins } from '../shared/db.js';
 import { generateSasUrl } from '../shared/blobSas.js';
+import { getSessionUser, unauthorizedResponse } from '../shared/auth.js';
 
 /**
  * GET /api/getPins
@@ -19,6 +20,9 @@ async function getPinsHandler(
   context: InvocationContext,
 ): Promise<HttpResponseInit> {
   context.log('getPins invoked');
+
+  const user = await getSessionUser(request);
+  if (!user) return unauthorizedResponse();
 
   const guildId = request.query.get('guildId') ?? undefined;
   const channelId = request.query.get('channelId') ?? undefined;
@@ -42,6 +46,7 @@ async function getPinsHandler(
       headers: {
         'Content-Type': 'application/json',
         'Access-Control-Allow-Origin': process.env.ALLOWED_ORIGIN ?? 'https://munchhatmap.dotheneedful.dev',
+        'Access-Control-Allow-Credentials': 'true',
       },
       body: JSON.stringify(pins),
     };
