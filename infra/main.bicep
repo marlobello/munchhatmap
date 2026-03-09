@@ -28,7 +28,7 @@ param repositoryBranch string = 'main'
 param staticWebAppCustomDomain string = 'munchhatmap.dotheneedful.dev'
 
 @description('Discord OAuth2 application Client ID (from Discord Developer Portal → OAuth2)')
-param discordClientId string = ''
+param discordClientId string = '1479611204929585162'
 
 @description('Discord guild ID for membership verification')
 param discordGuildId string = '734095597342294107'
