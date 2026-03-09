@@ -252,7 +252,7 @@ export async function handleImport(interaction: ChatInputCommandInteraction): Pr
       }
       const debugInfo: string[] = [];
       const result = await processMessageIntoPin(message, {
-        skipTagCheck: false,
+        skipTagCheck: force,
         debugLog: verbosity === 'debug' ? debugInfo : undefined,
       });
       const jumpUrl = `${DISCORD_MSG_BASE}/${message.guildId}/${message.channelId}/${message.id}`;
