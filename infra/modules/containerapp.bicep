@@ -21,6 +21,8 @@ param botIdentityId string
 // Storage account name for blob image uploads (managed identity auth — no key needed)
 param storageAccountName string
 param imageStorageContainer string = 'pin-images'
+// Client ID of the bot's user-assigned managed identity (required for DefaultAzureCredential)
+param botClientId string
 
 resource containerAppEnv 'Microsoft.App/managedEnvironments@2024-03-01' = {
   name: '${name}-env'
@@ -130,6 +132,11 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'IMAGE_STORAGE_CONTAINER'
               value: imageStorageContainer
+            }
+            // Required for DefaultAzureCredential to select the correct user-assigned identity
+            {
+              name: 'AZURE_CLIENT_ID'
+              value: botClientId
             }
           ]
         }

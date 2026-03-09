@@ -21,5 +21,7 @@ resource functionIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023
 
 output botIdentityId string = botIdentity.id
 output botIdentityPrincipalId string = botIdentity.properties.principalId
+output botClientId string = botIdentity.properties.clientId
 output functionIdentityId string = functionIdentity.id
 output functionIdentityPrincipalId string = functionIdentity.properties.principalId
+output functionClientId string = functionIdentity.properties.clientId

@@ -9,6 +9,7 @@ param allowedOrigin string = 'https://munchhatmap.dotheneedful.dev'
 
 // Pre-created managed identity (from identities module)
 param functionIdentityId string
+param functionClientId string
 
 resource storageAccount 'Microsoft.Storage/storageAccounts@2023-05-01' = {
   name: '${replace(name, '-', '')}sa'
@@ -108,6 +109,11 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
         {
           name: 'IMAGE_STORAGE_CONTAINER'
           value: 'pin-images'
+        }
+        // Required for DefaultAzureCredential to select the correct user-assigned identity
+        {
+          name: 'AZURE_CLIENT_ID'
+          value: functionClientId
         }
       ]
       cors: {

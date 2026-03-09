@@ -94,6 +94,7 @@ module functions 'modules/functions.bicep' = {
     tags: tags
     keyVaultUri: keyVault.outputs.keyVaultUri
     functionIdentityId: identities.outputs.functionIdentityId
+    functionClientId: identities.outputs.functionClientId
     allowedOrigin: 'https://${staticWebAppCustomDomain}'
   }
 }
@@ -123,6 +124,7 @@ module containerApp 'modules/containerapp.bicep' = {
     keyVaultUri: keyVault.outputs.keyVaultUri
     botIdentityId: identities.outputs.botIdentityId
     storageAccountName: functions.outputs.storageAccountName
+    botClientId: identities.outputs.botClientId
   }
 }
 
