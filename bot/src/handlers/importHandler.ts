@@ -155,19 +155,21 @@ export async function handleImport(interaction: ChatInputCommandInteraction): Pr
     scanChannel = replyChannel;
   }
 
-  // ── Rate limit (keyed on scan channel)
-  const cooldownKey = `${interaction.user.id}:${scanChannel.id}`;
-  const lastRun = lastImportTime.get(cooldownKey) ?? 0;
-  const remaining = IMPORT_COOLDOWN_MS - (Date.now() - lastRun);
-  if (remaining > 0) {
-    const mins = Math.ceil(remaining / 60000);
-    await interaction.reply({
-      content: `⏳ Please wait ${mins} more minute${mins !== 1 ? 's' : ''} before running the import again.`,
-      ephemeral: true,
-    });
-    return;
+  // ── Rate limit (keyed on scan channel) — admins and MODs are exempt
+  if (!elevated) {
+    const cooldownKey = `${interaction.user.id}:${scanChannel.id}`;
+    const lastRun = lastImportTime.get(cooldownKey) ?? 0;
+    const remaining = IMPORT_COOLDOWN_MS - (Date.now() - lastRun);
+    if (remaining > 0) {
+      const mins = Math.ceil(remaining / 60000);
+      await interaction.reply({
+        content: `⏳ Please wait ${mins} more minute${mins !== 1 ? 's' : ''} before running the import again.`,
+        ephemeral: true,
+      });
+      return;
+    }
+    lastImportTime.set(cooldownKey, Date.now());
   }
-  lastImportTime.set(cooldownKey, Date.now());
 
   await interaction.deferReply();
 

@@ -222,7 +222,7 @@ Scans the history of a channel and imports all qualifying posts, skipping any al
 - **Admins / MOD role** — imports all messages in the channel
 - **Everyone else** — imports only their own messages
 
-A **5-minute cooldown** applies per user per channel to prevent quota exhaustion.
+A **5-minute cooldown** applies per user per channel to prevent quota exhaustion. Admins and MOD role members are exempt from this limit.
 
 #### Parameters
 
