@@ -31,7 +31,7 @@ Rules:
 - Be as specific as possible: use coordinates for a named landmark/restaurant/venue if mentioned, not just the city.
 - If a specific venue, landmark, park, or restaurant is mentioned, return its coordinates — not the city centre.
 - If only a city, country, or broader region is mentioned, return coordinates for its geographic centre.
-- Country names, island names, and well-known regions (e.g. "Dominican Republic", "Patagonia", "Tuscany") are valid locations — return their geographic centre.
+- Country names, island names, well-known regions, and named bodies of water (e.g. "Dominican Republic", "Patagonia", "Tuscany", "Gulf of Mexico", "South China Sea") are valid locations — return their geographic centre.
 - "state" must only be populated for locations inside the United States; set to null for all other countries.
 - Only return null if the text contains absolutely no geographic information whatsoever.
 - Return ONLY the JSON object or null — no explanation, no markdown, no code fences.`;
