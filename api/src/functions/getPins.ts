@@ -1,5 +1,6 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import { getPins } from '../shared/db.js';
+import { refreshDiscordUrls } from '../shared/discordRefresh.js';
 
 /**
  * GET /api/getPins
@@ -25,6 +26,18 @@ async function getPinsHandler(
 
   try {
     const pins = await getPins({ guildId, channelId, userId });
+
+    // Refresh expiring Discord CDN URLs before returning to the client
+    const imageUrls = pins.map((p) => p.imageUrl).filter((u): u is string => Boolean(u));
+    if (imageUrls.length > 0) {
+      const refreshed = await refreshDiscordUrls(imageUrls);
+      for (const pin of pins) {
+        if (pin.imageUrl) {
+          pin.imageUrl = refreshed.get(pin.imageUrl) ?? pin.imageUrl;
+        }
+      }
+    }
+
     return {
       status: 200,
       headers: {

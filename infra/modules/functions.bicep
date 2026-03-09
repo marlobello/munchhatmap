@@ -91,6 +91,10 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
           name: 'ALLOWED_ORIGIN'
           value: allowedOrigin
         }
+        {
+          name: 'DISCORD_BOT_TOKEN'
+          value: '@Microsoft.KeyVault(VaultName=${split(keyVaultUri, '/')[2]};SecretName=discord-bot-token)'
+        }
       ]
       cors: {
         allowedOrigins: [

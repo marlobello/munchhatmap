@@ -67,13 +67,21 @@ function buildPopupContent(pin) {
     ? `<p class="caption">${escapeHtml(pin.caption)}</p>`
     : '';
   const author = pin.username ? `@${escapeHtml(pin.username)}` : escapeHtml(`<${pin.userId}>`);
+  const discordLinkHtml = safeLink
+    ? `<a href="${escapeAttr(safeLink)}" target="_blank" rel="noopener noreferrer">View original message →</a>`
+    : '';
   return `
     <div class="popup-content">
-      <img src="${escapeAttr(pin.imageUrl)}" alt="MunchHat photo" loading="lazy" />
+      <img class="popup-photo" src="${escapeAttr(pin.imageUrl)}" alt="MunchHat photo" loading="lazy" />
+      <div class="popup-img-error" style="display:none">
+        <img src="/munchhat.png" alt="" class="popup-img-error-icon" />
+        <p>📷 Image no longer available</p>
+        ${discordLinkHtml}
+      </div>
       ${caption}
       <p class="meta">📅 ${date}</p>
       <p class="meta">👤 ${author}</p>
-      ${safeLink ? `<a href="${escapeAttr(safeLink)}" target="_blank" rel="noopener noreferrer">View original message →</a>` : ''}
+      ${safeLink ? `<div class="popup-discord-link">${discordLinkHtml}</div>` : ''}
     </div>
   `;
 }
@@ -91,4 +99,20 @@ export function renderPins(map, pins) {
     cluster.addLayer(marker);
   }
   map.addLayer(cluster);
+
+  // CSP-safe image error handler: swap broken image for placeholder + Discord link.
+  // Attached here via popupopen because the elements don't exist in the DOM until the popup opens.
+  map.on('popupopen', (e) => {
+    const el = e.popup.getElement();
+    if (!el) return;
+    const img = el.querySelector('img.popup-photo');
+    const errorDiv = el.querySelector('.popup-img-error');
+    const discordLinkDiv = el.querySelector('.popup-discord-link');
+    if (!img || !errorDiv) return;
+    img.addEventListener('error', () => {
+      img.style.display = 'none';
+      errorDiv.style.display = '';
+      if (discordLinkDiv) discordLinkDiv.style.display = 'none'; // already shown in errorDiv
+    }, { once: true });
+  });
 }
