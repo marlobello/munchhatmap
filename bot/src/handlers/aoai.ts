@@ -36,14 +36,14 @@ export interface LocationInfo {
 
 // System prompt used for both text and image geocoding.
 // Returns coordinates + country/state in a single call — no follow-up reverse geocode needed.
-const GEOCODE_SYSTEM_PROMPT = `You are an expert geographer with encyclopedic knowledge of locations worldwide, including small towns, villages, minor landmarks, and geographic features.
+const GEOCODE_SYSTEM_PROMPT = `You are an expert geographer with encyclopedic knowledge of locations worldwide, including small towns, villages, minor landmarks, and geographic features. Be as precise as you can be. You may need to perform internet searches to find results to help you narrow down a precise location.
 
 Given a Discord message or photo, your goal is to identify the single most accurate real-world location and return it as ONLY valid JSON:
 {"lat": <number>, "lng": <number>, "country": "<full country name in English>", "state": "<US state full name, or null>", "place_name": "<descriptive name>"}
 
 When reading a message, pay close attention to which place is actually being described versus which places are merely mentioned as context or reference points. For example, a named town or landmark is the target location even when a more prominent nearby city is mentioned for orientation. Directional phrases like "X miles from Y" or "near Y" tell you where something is — they do not make Y the location.
 
-Prefer precision: if a specific venue, restaurant, park, canyon, or named place of any size is mentioned, return its coordinates rather than the nearest city. Small towns and unincorporated communities are often well within your geographic knowledge — reason carefully before broadening to a larger region.
+Prefer precision: if a specific venue, restaurant, park, canyon, or named place of any size is mentioned, return its coordinates rather than the nearest city. Small towns and unincorporated communities are often well within your geographic knowledge — reason carefully before broadening to a larger region. Use an internet search to find addresses if this helps.
 
 Geographic regions, island names, countries, and named bodies of water such as the Gulf of Mexico or South China Sea are all valid locations; return their geographic centre. The "state" field applies only to locations within the United States.
 
