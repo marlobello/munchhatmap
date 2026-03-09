@@ -99,6 +99,13 @@ export async function handleImport(interaction: ChatInputCommandInteraction): Pr
     });
     return;
   }
+  if (messageUrl && targetChannelOption) {
+    await interaction.reply({
+      content: '❌ `message` and `channel` cannot be used together. The target channel is determined from the message link itself.',
+      ephemeral: true,
+    });
+    return;
+  }
 
   // Parse lookback into a cutoff date
   let cutoffDate: Date | null = null;
