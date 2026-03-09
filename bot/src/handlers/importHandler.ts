@@ -205,8 +205,15 @@ export async function handleImport(interaction: ChatInputCommandInteraction): Pr
       if (forceLocation) {
         // Force-location mode: geocode the provided string via AOAI, then upsert
         const debugInfo: string[] = [];
-        if (verbosity === 'debug') debugInfo.push(`Sending to AOAI: "${forceLocation}"`);
-        const location = await geocodeWithText(forceLocation);
+        let rawResponse: string | null = null;
+        const location = await geocodeWithText(
+          forceLocation,
+          verbosity === 'debug' ? (raw) => { rawResponse = raw; } : undefined,
+        );
+        if (verbosity === 'debug') {
+          debugInfo.push(`Sending to AOAI: "${forceLocation}"`);
+          debugInfo.push(`Raw AOAI response: ${rawResponse ?? '(no response / API error)'}`);
+        }
         if (!location) {
           let reply = `📍 AOAI could not determine coordinates for \`${forceLocation}\`.`;
           if (verbosity === 'debug' && debugInfo.length) {
@@ -239,9 +246,11 @@ export async function handleImport(interaction: ChatInputCommandInteraction): Pr
         };
         await upsertPin(pin);
         const action = existingPin ? '🔄 Updated' : '✅ Pinned';
-        await interaction.editReply(
-          `${action}! **${pin.lat.toFixed(5)}, ${pin.lng.toFixed(5)}** — ${pin.place_name ?? pin.country ?? forceLocation}`,
-        );
+        let reply = `${action}! **${pin.lat.toFixed(5)}, ${pin.lng.toFixed(5)}** — ${pin.place_name ?? pin.country ?? forceLocation}`;
+        if (verbosity === 'debug' && debugInfo.length) {
+          reply += '\n\n**Debug:**\n' + debugInfo.map((l) => `> ${l}`).join('\n');
+        }
+        await interaction.editReply(reply);
         return;
       }
 
@@ -270,14 +279,18 @@ export async function handleImport(interaction: ChatInputCommandInteraction): Pr
         if (force && existingPin) {
           result.id = existingPin.id;
           await upsertPin(result);
-          await interaction.editReply(
-            `🔄 Updated! **${result.lat.toFixed(5)}, ${result.lng.toFixed(5)}** — ${result.place_name ?? result.country ?? 'unknown location'}`,
-          );
+          let reply = `🔄 Updated! **${result.lat.toFixed(5)}, ${result.lng.toFixed(5)}** — ${result.place_name ?? result.country ?? 'unknown location'}`;
+          if (verbosity === 'debug' && debugInfo.length) {
+            reply += '\n\n**Debug:**\n' + debugInfo.map((l) => `> ${l}`).join('\n');
+          }
+          await interaction.editReply(reply);
         } else {
           await savePin(result);
-          await interaction.editReply(
-            `✅ Pinned! **${result.lat.toFixed(5)}, ${result.lng.toFixed(5)}** — ${result.place_name ?? result.country ?? 'unknown location'}`,
-          );
+          let reply = `✅ Pinned! **${result.lat.toFixed(5)}, ${result.lng.toFixed(5)}** — ${result.place_name ?? result.country ?? 'unknown location'}`;
+          if (verbosity === 'debug' && debugInfo.length) {
+            reply += '\n\n**Debug:**\n' + debugInfo.map((l) => `> ${l}`).join('\n');
+          }
+          await interaction.editReply(reply);
         }
       }
     } catch (err) {
