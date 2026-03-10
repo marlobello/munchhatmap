@@ -102,6 +102,7 @@ module functions 'modules/functions.bicep' = {
     functionIdentityId: identities.outputs.functionIdentityId
     functionClientId: identities.outputs.functionClientId
     cosmosEndpoint: cosmosDb.outputs.cosmosEndpoint
+    openAiEndpoint: openAi.outputs.endpoint
     allowedOrigin: 'https://${staticWebAppCustomDomain}'
     discordClientId: discordClientId
     discordGuildId: discordGuildId

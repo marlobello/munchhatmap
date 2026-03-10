@@ -15,7 +15,7 @@ async function authMeHandler(
   context.log('authMe invoked');
   const user = await getSessionUser(request);
   if (!user) return jsonResponse(401, { error: 'Not authenticated' });
-  return jsonResponse(200, { userId: user.userId, username: user.username, avatar: user.avatar });
+  return jsonResponse(200, { userId: user.userId, username: user.username, avatar: user.avatar, isElevated: user.isElevated ?? false });
 }
 
 app.http('authMe', {

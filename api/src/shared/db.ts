@@ -55,3 +55,26 @@ export async function getPins(filters: {
   const { resources } = await container.items.query<MapPin>(querySpec).fetchAll();
   return resources;
 }
+
+/**
+ * Fetches a single pin by its Cosmos document ID and partition key (guildId).
+ * Uses a point read — the most efficient Cosmos DB operation.
+ * Returns null if the pin does not exist.
+ */
+export async function getPinById(id: string, guildId: string): Promise<MapPin | null> {
+  const container = getCosmosClient().database(DB_NAME).container(CONTAINER_NAME);
+  try {
+    const { resource } = await container.item(id, guildId).read<MapPin>();
+    return resource ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Upserts a pin document. Creates if the ID doesn't exist, replaces if it does.
+ */
+export async function upsertPin(pin: MapPin): Promise<void> {
+  const container = getCosmosClient().database(DB_NAME).container(CONTAINER_NAME);
+  await container.items.upsert(pin);
+}

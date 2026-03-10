@@ -15,7 +15,6 @@ param functionPrincipalId string
 
 // ── Cosmos DB data-plane RBAC ────────────────────────────────────────────────
 var cosmosContributorRoleId = '00000000-0000-0000-0000-000000000002'
-var cosmosReaderRoleId      = '00000000-0000-0000-0000-000000000001'
 
 resource cosmosAccount 'Microsoft.DocumentDB/databaseAccounts@2024-05-15' existing = {
   name: cosmosAccountName
@@ -35,7 +34,7 @@ resource apiCosmosRole 'Microsoft.DocumentDB/databaseAccounts/sqlRoleAssignments
   name: '2d3f9807-10d9-5fc3-a312-b051122688a3'
   parent: cosmosAccount
   properties: {
-    roleDefinitionId: '${cosmosAccount.id}/sqlRoleDefinitions/${cosmosReaderRoleId}'
+    roleDefinitionId: '${cosmosAccount.id}/sqlRoleDefinitions/${cosmosContributorRoleId}'
     principalId: functionPrincipalId
     scope: cosmosAccount.id
   }
@@ -56,6 +55,16 @@ resource botOpenAiRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
   properties: {
     roleDefinitionId: cognitiveServicesOpenAiUserRole
     principalId: botPrincipalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+resource apiOpenAiRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: 'a2f14c3e-8b62-4d9e-a7f0-5c3e1b8d9a24'
+  scope: openAiAccount
+  properties: {
+    roleDefinitionId: cognitiveServicesOpenAiUserRole
+    principalId: functionPrincipalId
     principalType: 'ServicePrincipal'
   }
 }

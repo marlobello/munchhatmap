@@ -1,5 +1,5 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
-import { signToken, parseCookie, isGuildMember, getDiscordUser, createExchangeCode } from '../shared/auth.js';
+import { signToken, parseCookie, getGuildMemberInfo, getDiscordUser, createExchangeCode } from '../shared/auth.js';
 import { getAllowedOrigin } from '../shared/response.js';
 
 /**
@@ -64,9 +64,9 @@ async function authCallbackHandler(
     const tokenData = (await tokenRes.json()) as { access_token: string };
     const accessToken = tokenData.access_token;
 
-    // Verify guild membership before granting access
-    const member = await isGuildMember(accessToken);
-    if (!member) {
+    // Verify guild membership and check for elevated (MOD) role
+    const { isMember, isElevated } = await getGuildMemberInfo(accessToken);
+    if (!isMember) {
       return {
         status: 403,
         headers: { 'Content-Type': 'application/json' },
@@ -84,6 +84,7 @@ async function authCallbackHandler(
       userId: discordUser.id,
       username: discordUser.username,
       avatar: discordUser.avatar,
+      isElevated,
     });
     const exchangeCode = createExchangeCode(sessionToken);
 
