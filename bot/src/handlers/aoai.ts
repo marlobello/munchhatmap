@@ -93,14 +93,36 @@ function parseReverseResponse(content: string | null): Pick<LocationInfo, 'count
   }
 }
 
-async function callAoai(messages: Parameters<AzureOpenAI['chat']['completions']['create']>[0]['messages'], maxTokens = 120): Promise<string | null> {
+async function callAoai(
+  messages: Parameters<AzureOpenAI['chat']['completions']['create']>[0]['messages'],
+  maxTokens = 120,
+  onError?: (err: string) => void,
+): Promise<string | null> {
   const client = getClient();
-  if (!client) return null;
+  if (!client) {
+    const msg = `AOAI client not initialised — endpoint="${endpoint || '(not set)'}"`;
+    console.warn('[aoai]', msg);
+    onError?.(msg);
+    return null;
+  }
   try {
     const response = await client.chat.completions.create({ model: deployment, temperature: 0, max_completion_tokens: maxTokens, messages });
     return response.choices[0]?.message?.content ?? null;
   } catch (err) {
-    console.error('[aoai] API call failed:', err instanceof Error ? err.message : err);
+    // Extract structured detail from OpenAI SDK errors where available
+    const detail = (() => {
+      if (err && typeof err === 'object') {
+        const e = err as Record<string, unknown>;
+        const parts: string[] = [];
+        if (e['status'])  parts.push(`HTTP ${e['status']}`);
+        if (e['code'])    parts.push(`code=${e['code']}`);
+        if (e['message']) parts.push(String(e['message']));
+        if (parts.length) return parts.join(' | ');
+      }
+      return err instanceof Error ? err.message : String(err);
+    })();
+    console.error('[aoai] API call failed:', detail);
+    onError?.(detail);
     return null;
   }
 }
@@ -108,16 +130,17 @@ async function callAoai(messages: Parameters<AzureOpenAI['chat']['completions'][
 /**
  * Geocodes a Discord message text using AOAI.
  * Returns full LocationInfo (lat, lng, country, state, place_name) in a single call.
- * If onRaw is provided, it is called with the raw AOAI response string (for debug logging).
+ * onRaw is called with (rawResponse, errorDetail?) — errorDetail is set on API failure.
  */
-export async function geocodeWithText(messageText: string, onRaw?: (raw: string | null) => void): Promise<LocationInfo | null> {
-  if (!getClient()) { console.warn('[aoai] not configured — skipping text geocoding'); return null; }
+export async function geocodeWithText(messageText: string, onRaw?: (raw: string | null, err?: string) => void): Promise<LocationInfo | null> {
+  if (!getClient()) { console.warn('[aoai] not configured — skipping text geocoding'); onRaw?.(null, `AOAI client not initialised — endpoint="${endpoint || '(not set)'}"`); return null; }
   if (!messageText.trim()) return null;
+  let apiError: string | undefined;
   const content = await callAoai([
     { role: 'system', content: GEOCODE_SYSTEM_PROMPT },
     { role: 'user',   content: `Discord message: "${messageText}"` },
-  ]);
-  onRaw?.(content);
+  ], 120, (e) => { apiError = e; });
+  onRaw?.(content, apiError);
   const result = parseGeocodeResponse(content);
   console.log(`[aoai] text "${messageText.slice(0, 60)}" → ${content?.slice(0, 100)}`);
   return result;
@@ -126,10 +149,11 @@ export async function geocodeWithText(messageText: string, onRaw?: (raw: string 
 /**
  * Geocodes an image URL using AOAI vision.
  * Returns full LocationInfo (lat, lng, country, state, place_name) in a single call.
- * If onRaw is provided, it is called with the raw AOAI response string (for debug logging).
+ * onRaw is called with (rawResponse, errorDetail?) — errorDetail is set on API failure.
  */
-export async function geocodeWithImage(imageUrl: string, onRaw?: (raw: string | null) => void): Promise<LocationInfo | null> {
-  if (!getClient()) { console.warn('[aoai] not configured — skipping image geocoding'); return null; }
+export async function geocodeWithImage(imageUrl: string, onRaw?: (raw: string | null, err?: string) => void): Promise<LocationInfo | null> {
+  if (!getClient()) { console.warn('[aoai] not configured — skipping image geocoding'); onRaw?.(null, `AOAI client not initialised — endpoint="${endpoint || '(not set)'}"`); return null; }
+  let apiError: string | undefined;
   const content = await callAoai([
     { role: 'system', content: GEOCODE_SYSTEM_PROMPT },
     {
@@ -139,8 +163,8 @@ export async function geocodeWithImage(imageUrl: string, onRaw?: (raw: string | 
         { type: 'image_url', image_url: { url: imageUrl, detail: 'low' } },
       ],
     },
-  ]);
-  onRaw?.(content);
+  ], 120, (e) => { apiError = e; });
+  onRaw?.(content, apiError);
   const result = parseGeocodeResponse(content);
   console.log(`[aoai] image → ${content?.slice(0, 100)}`);
   return result;
@@ -149,15 +173,16 @@ export async function geocodeWithImage(imageUrl: string, onRaw?: (raw: string | 
 /**
  * Reverse geocodes GPS coordinates to country + US state using AOAI.
  * Used for the EXIF GPS path where we already have coordinates.
- * If onRaw is provided, it is called with the raw AOAI response string (for debug logging).
+ * onRaw is called with (rawResponse, errorDetail?) — errorDetail is set on API failure.
  */
-export async function reverseGeocodeWithAoai(lat: number, lng: number, onRaw?: (raw: string | null) => void): Promise<LocationInfo | null> {
-  if (!getClient()) { console.warn('[aoai] not configured — skipping reverse geocoding'); return null; }
+export async function reverseGeocodeWithAoai(lat: number, lng: number, onRaw?: (raw: string | null, err?: string) => void): Promise<LocationInfo | null> {
+  if (!getClient()) { console.warn('[aoai] not configured — skipping reverse geocoding'); onRaw?.(null, `AOAI client not initialised — endpoint="${endpoint || '(not set)'}"`); return null; }
+  let apiError: string | undefined;
   const content = await callAoai([
     { role: 'system', content: REVERSE_SYSTEM_PROMPT },
     { role: 'user',   content: `Coordinates: lat=${lat}, lng=${lng}` },
-  ], 60);
-  onRaw?.(content);
+  ], 60, (e) => { apiError = e; });
+  onRaw?.(content, apiError);
   const meta = parseReverseResponse(content);
   if (!meta) return { lat, lng };
   console.log(`[aoai] reverse ${lat},${lng} → ${content?.slice(0, 80)}`);

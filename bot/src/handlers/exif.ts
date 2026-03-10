@@ -7,29 +7,38 @@ export interface GpsCoordinates {
 
 const ALLOWED_IMAGE_HOSTS = /^https:\/\/(cdn\.discordapp\.com|media\.discordapp\.net)\//;
 
+export interface GpsResult {
+  coords: GpsCoordinates | null;
+  /** Human-readable reason when coords is null — for debug logging. */
+  reason: string;
+}
+
 /**
  * Downloads the image from the given URL and attempts to extract GPS coordinates from EXIF data.
- * Returns null if no GPS data is found or extraction fails.
+ * Returns coords on success, or null with a reason string on failure.
  */
-export async function extractGps(imageUrl: string): Promise<GpsCoordinates | null> {
+export async function extractGps(imageUrl: string): Promise<GpsResult> {
   if (!ALLOWED_IMAGE_HOSTS.test(imageUrl)) {
-    console.warn('[exif] Skipping fetch — URL is not a Discord CDN domain:', imageUrl);
-    return null;
+    const reason = `URL is not a Discord CDN domain: ${imageUrl}`;
+    console.warn('[exif] Skipping fetch —', reason);
+    return { coords: null, reason };
   }
   try {
     const response = await fetch(imageUrl);
     if (!response.ok) {
-      throw new Error(`Failed to download image: ${response.status} ${response.statusText}`);
+      const reason = `Image download failed: HTTP ${response.status} ${response.statusText}`;
+      console.error('[exif]', reason);
+      return { coords: null, reason };
     }
     const buffer = Buffer.from(await response.arrayBuffer());
-
     const gps = await exifr.gps(buffer);
     if (gps && typeof gps.latitude === 'number' && typeof gps.longitude === 'number') {
-      return { lat: gps.latitude, lng: gps.longitude };
+      return { coords: { lat: gps.latitude, lng: gps.longitude }, reason: 'ok' };
     }
-    return null;
+    return { coords: null, reason: 'no GPS metadata in image EXIF' };
   } catch (err) {
-    console.error('[exif] Failed to extract GPS data:', err instanceof Error ? err.message : err);
-    return null;
+    const reason = `EXIF extraction error: ${err instanceof Error ? err.message : String(err)}`;
+    console.error('[exif]', reason);
+    return { coords: null, reason };
   }
 }

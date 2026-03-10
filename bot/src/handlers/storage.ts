@@ -37,22 +37,24 @@ function extensionFromUrl(url: string): string {
   }
 }
 
+export interface BlobUploadResult {
+  url: string;
+  /** Set when upload failed — contains the error reason for debug logging. */
+  error?: string;
+}
+
 /**
- * Downloads an image from Discord and uploads it to Azure Blob Storage.
- * Returns the permanent base blob URL (no SAS params).
- *
- * Falls back to the original Discord CDN URL if:
- *   - AZURE_STORAGE_ACCOUNT_NAME is not configured (local dev)
- *   - Any download/upload error occurs
+ * Downloads a Discord image and uploads it to Azure Blob Storage.
+ * Returns the permanent blob URL on success, or the original Discord URL with an error reason on failure.
  */
 export async function uploadImageToBlob(
   discordUrl: string,
   messageId: string,
   contentType: string,
-): Promise<string> {
+): Promise<BlobUploadResult> {
   const client = getBlobClient();
   if (!client) {
-    return discordUrl; // local dev — no storage configured
+    return { url: discordUrl }; // local dev — no storage configured
   }
 
   const ext = extensionFromUrl(discordUrl);
@@ -61,8 +63,9 @@ export async function uploadImageToBlob(
   try {
     const response = await fetch(discordUrl);
     if (!response.ok) {
-      console.warn(`[storage] Failed to fetch image (${response.status}): ${discordUrl}`);
-      return discordUrl;
+      const error = `Image download failed: HTTP ${response.status} ${response.statusText}`;
+      console.warn(`[storage] ${error}: ${discordUrl}`);
+      return { url: discordUrl, error };
     }
     const buffer = Buffer.from(await response.arrayBuffer());
 
@@ -73,9 +76,10 @@ export async function uploadImageToBlob(
       blobHTTPHeaders: { blobContentType: contentType || 'image/jpeg' },
     });
 
-    return blockBlob.url; // permanent base URL — no SAS params
+    return { url: blockBlob.url }; // permanent base URL — no SAS params
   } catch (err) {
-    console.error('[storage] Upload failed, using Discord URL:', err instanceof Error ? err.message : err);
-    return discordUrl;
+    const error = `Upload error: ${err instanceof Error ? err.message : String(err)}`;
+    console.error('[storage] Upload failed, using Discord URL:', error);
+    return { url: discordUrl, error };
   }
 }

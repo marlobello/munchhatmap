@@ -206,13 +206,16 @@ export async function handleImport(interaction: ChatInputCommandInteraction): Pr
         // Force-location mode: geocode the provided string via AOAI, then upsert
         const debugInfo: string[] = [];
         let rawResponse: string | null = null;
+        let aoaiError: string | undefined;
         const location = await geocodeWithText(
           forceLocation,
-          verbosity === 'debug' ? (raw) => { rawResponse = raw; } : undefined,
+          verbosity === 'debug' ? (raw, e) => { rawResponse = raw; aoaiError = e; } : undefined,
         );
         if (verbosity === 'debug') {
           debugInfo.push(`Sending to AOAI: "${forceLocation}"`);
-          debugInfo.push(`Raw AOAI response: ${rawResponse ?? '(no response / API error)'}`);
+          debugInfo.push(aoaiError
+            ? `AOAI error: ${aoaiError}`
+            : `Raw AOAI response: ${rawResponse ?? '(no response)'}`);
         }
         if (!location) {
           let reply = `📍 AOAI could not determine coordinates for \`${forceLocation}\`.`;
@@ -224,9 +227,19 @@ export async function handleImport(interaction: ChatInputCommandInteraction): Pr
         }
         const rawDiscordUrl = message.attachments.first()?.url;
         const contentType = message.attachments.first()?.contentType ?? 'image/jpeg';
-        const imageUrl = rawDiscordUrl
-          ? await uploadImageToBlob(rawDiscordUrl, message.id, contentType)
-          : (existingPin?.imageUrl ?? '');
+        let imageUrl: string;
+        if (rawDiscordUrl) {
+          const { url, error: blobError } = await uploadImageToBlob(rawDiscordUrl, message.id, contentType);
+          imageUrl = url;
+          if (verbosity === 'debug') {
+            debugInfo.push(blobError
+              ? `Blob upload: ❌ ${blobError} — falling back to Discord CDN URL`
+              : `Blob upload: ✅ ${url}`);
+          }
+        } else {
+          imageUrl = existingPin?.imageUrl ?? '';
+          if (verbosity === 'debug') debugInfo.push('Blob upload: ℹ️ no attachment on message — reusing existing image URL');
+        }
         const pin = {
           id: existingPin?.id ?? randomUUID(),
           guildId: message.guildId!,
