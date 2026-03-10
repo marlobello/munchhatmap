@@ -78,3 +78,11 @@ export async function upsertPin(pin: MapPin): Promise<void> {
   const container = getCosmosClient().database(DB_NAME).container(CONTAINER_NAME);
   await container.items.upsert(pin);
 }
+
+/**
+ * Deletes a pin document by id and partition key (guildId).
+ */
+export async function deletePin(id: string, guildId: string): Promise<void> {
+  const container = getCosmosClient().database(DB_NAME).container(CONTAINER_NAME);
+  await container.item(id, guildId).delete();
+}
