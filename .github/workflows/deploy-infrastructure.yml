@@ -11,6 +11,7 @@ on:
 permissions:
   id-token: write
   contents: read
+  actions: write
 
 jobs:
   deploy:
@@ -43,3 +44,19 @@ jobs:
                 repositoryUrl=https://github.com/${{ github.repository }} \
                 repositoryBranch=${{ github.ref_name }} \
             --output table
+
+  redeploy-services:
+    needs: deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Bot redeploy
+        run: |
+          gh workflow run deploy-bot.yml --ref ${{ github.ref_name }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Trigger API redeploy
+        run: |
+          gh workflow run deploy-api.yml --ref ${{ github.ref_name }}
+        env:
+          GH_TOKEN: ${{ github.token }}
