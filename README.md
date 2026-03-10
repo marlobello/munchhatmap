@@ -11,7 +11,7 @@ A Discord bot that drops a hat pin on a live map every time someone posts a phot
 1. Post a photo in Discord with `#munchhat` or `#munchhatchronicles`.
 2. The bot determines the location using a three-step pipeline (see [Geocoding](#geocoding) below).
 3. A hat pin is dropped on the map at that location with your photo, username, and a link back to the original message.
-4. Use `/munchhat-import` to retroactively import all existing posts from a channel.
+4. Use `/munchhat-import message:<url>` to import a specific past post by its Discord message link.
 
 ---
 
@@ -216,49 +216,36 @@ When a message is posted with `#munchhat` or `#munchhatchronicles` and at least 
 If no location can be determined, the bot replies with guidance on how to fix the post.
 
 ### `/munchhat-import` slash command
-Scans the history of a channel and imports all qualifying posts, skipping any already in the database (deduplication by message ID). Also scans a thread named **Munch Map** if one exists — all images in that thread are treated as candidates regardless of tags. Registers on bot startup per guild.
+Imports a single qualifying post by Discord message link. Skips messages already in the database (deduplication by message ID). Registers on bot startup per guild.
 
 **Access:**
-- **Admins / MOD role** — imports all messages in the channel
-- **Everyone else** — imports only their own messages
+- **Admins / MOD role** — can import any message
+- **Everyone else** — can import only their own messages
 
-A **5-minute cooldown** applies per user per channel to prevent quota exhaustion. Admins and MOD role members are exempt from this limit.
+A **5-minute cooldown** applies per user to prevent quota exhaustion. Admins and MOD role members are exempt.
 
 #### Parameters
 
-| Parameter | Type | Description |
-|---|---|---|
-| `lookback` | string | How far back to scan. Accepts a number + unit: `30m`, `6h`, `7d`, `2w`, `3M`, `1y`. Cannot be used with `message`. |
-| `verbosity` | choice | Controls output detail. See table below. Default: `standard`. |
-| `message` | string | Full Discord message URL to import a single specific post. Cannot be used with `lookback` or `channel`. |
-| `channel` | channel | Scan a different channel but post results here (keeps target channel clutter-free). Cannot be used with `message`. |
-| `force-location` | string | Location string sent directly to AOAI, bypassing all geocoding. Only valid with `message`. Overwrites the pin if it already exists. |
-| `force` | boolean | Re-run the full geocoding pipeline and overwrite the existing pin with the latest result — re-uploads the image to blob storage. Only valid with `message`. Cannot be used with `force-location`. |
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `message` | string | ✅ Yes | Full Discord message URL to import (e.g. `https://discord.com/channels/…`). |
+| `verbosity` | choice | No | Controls output detail. Default: `standard`. |
+| `force-location` | string | No | Location string sent directly to AOAI, bypassing all geocoding. Overwrites the pin if it already exists. Cannot be used with `force`. |
+| `force` | boolean | No | Re-run the full geocoding pipeline and overwrite the existing pin with the latest result — re-uploads the image to blob storage. Cannot be used with `force-location`. |
 
 #### Verbosity levels
 
 | Level | Output |
 |---|---|
-| `standard` | Counts only: *✅ 3 pinned · ⏭️ 12 already mapped · ⚠️ 2 need attention* (default) |
-| `verbose` | Counts + jump links to every message that couldn't be mapped |
-| `debug` | Everything in verbose, plus for each failed message: the exact text sent to AOAI, the raw AOAI JSON response for each geocoding step, and which steps were attempted |
-
-#### Mutual exclusivity rules
-
-- `force-location` requires `message`
-- `force` requires `message`
-- `force` and `force-location` cannot be combined
-- `message` and `lookback` cannot be combined
-- `message` and `channel` cannot be combined (the message URL already encodes the channel)
+| `standard` | Counts only: *✅ pinned · ⏭️ already mapped · ⚠️ needs attention* (default) |
+| `verbose` | Counts + jump link to the message if it couldn't be mapped |
+| `debug` | Everything in verbose, plus the exact text sent to AOAI, the raw AOAI JSON response for each geocoding step, and which steps were attempted |
 
 #### Example usages
 
 ```
-# Quick weekly catch-up — counts only (default verbosity)
-/munchhat-import lookback:7d
-
-# Scan #munchhat from a mod channel, show failures with jump links
-/munchhat-import channel:#munchhat lookback:30d verbosity:verbose
+# Import a specific post
+/munchhat-import message:https://discord.com/channels/734.../1480...
 
 # Debug why a specific post failed geocoding
 /munchhat-import message:https://discord.com/channels/734.../1480... verbosity:debug
@@ -269,6 +256,8 @@ A **5-minute cooldown** applies per user per channel to prevent quota exhaustion
 # Re-map a post after the message was edited (re-runs geocoding, re-uploads image)
 /munchhat-import message:https://discord.com/channels/734.../1480... force:True
 ```
+
+> **Note:** Bulk channel scanning (`lookback`, `channel` sweep) is intentionally disabled. All historical data has been imported — the `message` parameter covers all expected ongoing use. The batch scan code is preserved and can be re-enabled if needed.
 
 ---
 
