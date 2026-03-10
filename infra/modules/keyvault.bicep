@@ -8,6 +8,11 @@ param tags object = {}
 // Object IDs of the managed identities that need secret read access.
 param readerPrincipalIds array = []
 
+// Set to true only on the very first deployment to seed placeholder secrets.
+// Leave false (default) on all subsequent runs to avoid overwriting real values.
+@description('Seed placeholder secrets on first deploy only')
+param seedSecrets bool = false
+
 resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' = {
   name: name
   location: location
@@ -40,35 +45,35 @@ resource readerRoleAssignments 'Microsoft.Authorization/roleAssignments@2022-04-
   }
 ]
 
-// Placeholder secrets — overwrite with real values using:
+// Placeholder secrets — only seeded on first deployment (seedSecrets=true).
+// To set real values after initial deploy:
 //   az keyvault secret set --vault-name <name> --name <secret-name> --value "<real-value>"
-// Container Apps resolves these at provision time, so they must exist before the app deploys.
 
-resource secretDiscordToken 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
+resource secretDiscordToken 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = if (seedSecrets) {
   parent: keyVault
   name: 'discord-bot-token'
   properties: { value: 'PLACEHOLDER' }
 }
 
-resource secretCosmosEndpoint 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
+resource secretCosmosEndpoint 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = if (seedSecrets) {
   parent: keyVault
   name: 'cosmos-db-endpoint'
   properties: { value: 'PLACEHOLDER' }
 }
 
-resource secretCosmosKey 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
+resource secretCosmosKey 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = if (seedSecrets) {
   parent: keyVault
   name: 'cosmos-db-key'
   properties: { value: 'PLACEHOLDER' }
 }
 
-resource secretAoaiEndpoint 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
+resource secretAoaiEndpoint 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = if (seedSecrets) {
   parent: keyVault
   name: 'aoai-endpoint'
   properties: { value: 'PLACEHOLDER' }
 }
 
-resource secretAoaiKey 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
+resource secretAoaiKey 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = if (seedSecrets) {
   parent: keyVault
   name: 'aoai-key'
   properties: { value: 'PLACEHOLDER' }
