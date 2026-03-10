@@ -52,10 +52,14 @@ if (new URLSearchParams(window.location.search).get('logout') === '1') {
 }
 
 /** Makes an authenticated API request with the stored token. */
-async function authedFetch(url) {
+async function authedFetch(url, options = {}) {
   const token = localStorage.getItem(TOKEN_KEY);
   return fetch(url, {
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    ...options,
+    headers: {
+      ...(options.headers ?? {}),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
   });
 }
 
@@ -115,7 +119,7 @@ checkAuth().then((user) => {
   authedFetch(`${API_BASE}/getPins`)
     .then((r) => { if (!r.ok) throw new Error(`${r.status}`); return r.json(); })
     .then((pins) => {
-      renderPins(map, pins);
+      renderPins(map, pins, user, authedFetch, API_BASE);
       countEl.textContent = `${pins.length} pin${pins.length !== 1 ? 's' : ''}`;
     })
     .catch((err) => {

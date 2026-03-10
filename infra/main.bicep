@@ -33,6 +33,9 @@ param discordClientId string = '1479611204929585162'
 @description('Discord guild ID for membership verification')
 param discordGuildId string = '734095597342294107'
 
+@description('Discord role ID that grants elevated (MOD) permissions on the map')
+param discordModRoleId string = '946552913600331856'
+
 var prefix = 'munchhatmap'
 var tags = {
   project: 'munchhatmap'
@@ -102,9 +105,11 @@ module functions 'modules/functions.bicep' = {
     functionIdentityId: identities.outputs.functionIdentityId
     functionClientId: identities.outputs.functionClientId
     cosmosEndpoint: cosmosDb.outputs.cosmosEndpoint
+    openAiEndpoint: openAi.outputs.endpoint
     allowedOrigin: 'https://${staticWebAppCustomDomain}'
     discordClientId: discordClientId
     discordGuildId: discordGuildId
+    discordModRoleId: discordModRoleId
     discordRedirectUri: 'https://${prefix}-api-${env}.azurewebsites.net/api/auth/callback'
   }
 }

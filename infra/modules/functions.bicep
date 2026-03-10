@@ -9,11 +9,14 @@ param allowedOrigin string = 'https://munchhatmap.dotheneedful.dev'
 
 // Azure resource endpoints — not secrets, passed as plain env vars
 param cosmosEndpoint string
+param openAiEndpoint string = ''
+param openAiDeployment string = 'gpt-4.1'
 
 // Discord OAuth2 plain env vars
 param discordClientId string
 param discordGuildId string
 param discordRedirectUri string
+param discordModRoleId string = ''
 
 // Pre-created managed identity (from identities module)
 param functionIdentityId string
@@ -137,6 +140,19 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
         {
           name: 'DISCORD_REDIRECT_URI'
           value: discordRedirectUri
+        }
+        {
+          name: 'DISCORD_MOD_ROLE_ID'
+          value: discordModRoleId
+        }
+        // Azure OpenAI — for reverse geocoding on pin location updates
+        {
+          name: 'AZURE_OPENAI_ENDPOINT'
+          value: openAiEndpoint
+        }
+        {
+          name: 'AZURE_OPENAI_DEPLOYMENT'
+          value: openAiDeployment
         }
         // Discord OAuth2 client secret and JWT session secret — from Key Vault
         {

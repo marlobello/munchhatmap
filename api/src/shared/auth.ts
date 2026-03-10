@@ -11,6 +11,7 @@ export interface SessionUser {
   userId: string;
   username: string;
   avatar: string | null;
+  isElevated: boolean;
 }
 
 function getSessionSecret(): Uint8Array {
@@ -54,15 +55,40 @@ export async function getSessionUser(request: HttpRequest): Promise<SessionUser 
   return verifyToken(token);
 }
 
-/** Verifies the user is a member of the configured Discord guild. */
-export async function isGuildMember(discordAccessToken: string): Promise<boolean> {
+/**
+ * Verifies guild membership and checks if the user holds an elevated (MOD/admin) role.
+ * Elevation is determined by matching the user's role IDs against DISCORD_MOD_ROLE_ID
+ * (comma-separated list of role IDs that are considered elevated).
+ */
+export async function getGuildMemberInfo(discordAccessToken: string): Promise<{
+  isMember: boolean;
+  isElevated: boolean;
+}> {
   const guildId = process.env.DISCORD_GUILD_ID;
   if (!guildId) throw new Error('DISCORD_GUILD_ID environment variable is required');
 
   const res = await fetch(`https://discord.com/api/v10/users/@me/guilds/${guildId}/member`, {
     headers: { Authorization: `Bearer ${discordAccessToken}` },
   });
-  return res.ok;
+  if (!res.ok) return { isMember: false, isElevated: false };
+
+  const member = (await res.json()) as { roles: string[] };
+
+  const elevatedRoleIds = (process.env.DISCORD_MOD_ROLE_ID ?? '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  const isElevated =
+    elevatedRoleIds.length > 0 && member.roles.some((id) => elevatedRoleIds.includes(id));
+
+  return { isMember: true, isElevated };
+}
+
+/** @deprecated Use getGuildMemberInfo() instead. */
+export async function isGuildMember(discordAccessToken: string): Promise<boolean> {
+  const { isMember } = await getGuildMemberInfo(discordAccessToken);
+  return isMember;
 }
 
 /** Fetches the Discord user profile for the given access token. */
