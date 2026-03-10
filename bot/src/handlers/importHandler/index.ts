@@ -1,60 +1,54 @@
 /**
  * index.ts — thin dispatcher for the munchhat-import command.
- * Orchestrates validation, routing to single-message or batch scan, and reporting.
+ * Orchestrates validation, routing to single-message import, and reporting.
+ *
+ * NOTE: Bulk channel scanning (lookback, channel sweep) is intentionally disabled.
+ * The message parameter is now required. To re-enable batch scanning, restore the
+ * commented-out imports and batch dispatch block below, and re-add the lookback/channel
+ * options to the slash command definition in bot/src/index.ts.
  */
 
-import { ChatInputCommandInteraction, TextChannel } from 'discord.js';
+import { ChatInputCommandInteraction } from 'discord.js';
 import {
   checkPermissions,
   checkCooldown,
   validateOptions,
-  parseLookback,
-  resolveScanChannel,
+  // DISABLED: parseLookback,
+  // DISABLED: resolveScanChannel,
 } from './validation.js';
 import { handleSingleMessage } from './singleMessage.js';
-import { handleBatchScan } from './batchScan.js';
-import { sendSummary, sendFailureReport } from './reporting.js';
+// DISABLED: import { handleBatchScan } from './batchScan.js';
+// DISABLED: import { sendSummary, sendFailureReport } from './reporting.js';
 import type { Verbosity } from './types.js';
 
 export { Verbosity };
 export type { FailedMessage, ScanResult } from './types.js';
 
 export async function handleImport(interaction: ChatInputCommandInteraction): Promise<void> {
-  const { elevated, filterUserId } = checkPermissions(interaction);
+  const { elevated, filterUserId: _filterUserId } = checkPermissions(interaction);
 
   const verbosity = (interaction.options.getString('verbosity') ?? 'standard') as Verbosity;
-  const lookbackStr = interaction.options.getString('lookback');
   const messageUrl = interaction.options.getString('message');
-  const targetChannelOption = interaction.options.getChannel('channel');
   const forceLocation = interaction.options.getString('force-location');
   const force = interaction.options.getBoolean('force') ?? false;
 
-  const validationError = validateOptions(messageUrl, lookbackStr, targetChannelOption, forceLocation, force);
+  // DISABLED: lookback and channel options — bulk scanning is disabled
+  // const lookbackStr = interaction.options.getString('lookback');
+  // const targetChannelOption = interaction.options.getChannel('channel');
+
+  const validationError = validateOptions(messageUrl, forceLocation, force);
   if (validationError) {
     await interaction.reply({ content: validationError, ephemeral: true });
     return;
   }
 
-  let cutoffDate: Date | null = null;
-  if (lookbackStr) {
-    cutoffDate = parseLookback(lookbackStr);
-    if (!cutoffDate) {
-      await interaction.reply({
-        content: `❌ Invalid lookback format \`${lookbackStr}\`. Use a number + unit, e.g. \`7d\`, \`2w\`, \`3M\`, \`1y\`, \`6h\`.`,
-        ephemeral: true,
-      });
-      return;
-    }
-  }
+  // DISABLED: lookback parsing
+  // DISABLED: resolveScanChannel
+  // DISABLED: checkCooldown (only relevant for batch scans; single message imports are fast)
 
-  const scanChannelResult = resolveScanChannel(interaction, targetChannelOption as import('discord.js').GuildBasedChannel | null);
-  if (typeof scanChannelResult === 'string') {
-    await interaction.reply({ content: scanChannelResult, ephemeral: true });
-    return;
-  }
-  const scanChannel = scanChannelResult;
-
-  const cooldownMs = checkCooldown(interaction.user.id, scanChannel.id, elevated);
+  // Cooldown still applies for non-elevated users even on single imports
+  const scanChannelId = interaction.channelId ?? 'unknown';
+  const cooldownMs = checkCooldown(interaction.user.id, scanChannelId, elevated);
   if (cooldownMs > 0) {
     const mins = Math.ceil(cooldownMs / 60000);
     await interaction.reply({
@@ -65,23 +59,11 @@ export async function handleImport(interaction: ChatInputCommandInteraction): Pr
   }
 
   await interaction.deferReply();
+  await handleSingleMessage(interaction, messageUrl!, forceLocation, force, verbosity);
 
-  if (messageUrl) {
-    await handleSingleMessage(interaction, messageUrl, forceLocation, force, verbosity);
-    return;
-  }
-
-  const scopeNote = elevated ? 'all messages' : 'your messages only';
-  const result = await handleBatchScan(scanChannel, { cutoffDate, filterUserId, verbosity });
-
-  await sendSummary(interaction, {
-    ...result,
-    scopeNote,
-    scanChannel,
-    targetChannelOption: targetChannelOption as import('discord.js').GuildBasedChannel | null,
-    lookbackStr,
-    cutoffDate,
-  });
-
-  await sendFailureReport(interaction, result.failed, verbosity);
+  // DISABLED: batch scan dispatch
+  // const scopeNote = elevated ? 'all messages' : 'your messages only';
+  // const result = await handleBatchScan(scanChannel, { cutoffDate, filterUserId, verbosity });
+  // await sendSummary(interaction, { ...result, scopeNote, scanChannel, targetChannelOption, lookbackStr, cutoffDate });
+  // await sendFailureReport(interaction, result.failed, verbosity);
 }

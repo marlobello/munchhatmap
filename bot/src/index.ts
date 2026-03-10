@@ -15,13 +15,15 @@ if (!token) {
 
 const importCommand = new SlashCommandBuilder()
   .setName('munchhat-import')
-  .setDescription('Import past #munchhat pins from channel history')
-  .addStringOption((opt) =>
-    opt
-      .setName('lookback')
-      .setDescription('How far back to scan, e.g. 1d, 7d, 2w, 3M, 1y (default: all history)')
-      .setRequired(false),
-  )
+  .setDescription('Import a #munchhat pin by Discord message link')
+  // DISABLED: lookback and channel options removed — bulk scanning is disabled.
+  // Re-enable by uncommenting these and restoring the batch scan path in importHandler/index.ts.
+  // .addStringOption((opt) =>
+  //   opt
+  //     .setName('lookback')
+  //     .setDescription('How far back to scan, e.g. 1d, 7d, 2w, 3M, 1y (default: all history)')
+  //     .setRequired(false),
+  // )
   .addStringOption((opt) =>
     opt
       .setName('verbosity')
@@ -37,25 +39,26 @@ const importCommand = new SlashCommandBuilder()
     opt
       .setName('message')
       .setDescription('Import a single message by its Discord link (e.g. https://discord.com/channels/…)')
-      .setRequired(false),
+      .setRequired(true),
   )
-  .addChannelOption((opt) =>
-    opt
-      .setName('channel')
-      .setDescription('Scan a different channel (results posted here)')
-      .setRequired(false)
-      .addChannelTypes(ChannelType.GuildText),
-  )
+  // DISABLED: channel option removed — bulk channel scanning is disabled.
+  // .addChannelOption((opt) =>
+  //   opt
+  //     .setName('channel')
+  //     .setDescription('Scan a different channel (results posted here)')
+  //     .setRequired(false)
+  //     .addChannelTypes(ChannelType.GuildText),
+  // )
   .addStringOption((opt) =>
     opt
       .setName('force-location')
-      .setDescription('Override geocoding with this text — requires message param, overwrites existing pin if present')
+      .setDescription('Override geocoding with this text — overwrites existing pin if present')
       .setRequired(false),
   )
   .addBooleanOption((opt) =>
     opt
       .setName('force')
-      .setDescription('Re-run the full geocoding pipeline and overwrite the existing pin — requires message param')
+      .setDescription('Re-run the full geocoding pipeline and overwrite the existing pin')
       .setRequired(false),
   );
 

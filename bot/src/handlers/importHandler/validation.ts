@@ -3,7 +3,7 @@
  * validation, and lookback string parsing for the munchhat-import command.
  */
 
-import { ChatInputCommandInteraction, PermissionFlagsBits, TextChannel } from 'discord.js';
+import { ChatInputCommandInteraction, PermissionFlagsBits } from 'discord.js';
 import type { Verbosity } from './types.js';
 
 const IMPORT_COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes per user per channel
@@ -51,65 +51,26 @@ export function checkCooldown(userId: string, channelId: string, elevated: boole
 }
 
 /**
- * Validates mutual exclusivity of command options.
+ * Validates command options for single-message import mode.
  * Returns an error message string if validation fails, or null if all options are valid.
+ *
+ * DISABLED: lookback and channel mutual-exclusivity checks (batch scanning is disabled).
+ * Restore the full signature and checks when re-enabling batch scan.
  */
 export function validateOptions(
   messageUrl: string | null,
-  lookbackStr: string | null,
-  targetChannel: unknown,
   forceLocation: string | null,
   force: boolean,
 ): string | null {
-  if (forceLocation && !messageUrl)
-    return '❌ `force-location` can only be used together with the `message` parameter.';
-  if (force && forceLocation)
+  if (!messageUrl)
+    return '❌ `message` parameter is required.';
+  if (forceLocation && force)
     return '❌ `force` and `force-location` cannot be used together. Use `force` to re-run geocoding, or `force-location` to override it with a specific place.';
-  if (force && !messageUrl)
-    return '❌ `force` can only be used together with the `message` parameter.';
-  if (messageUrl && lookbackStr)
-    return '❌ `message` and `lookback` cannot be used together. Use `message` to target a specific post, or `lookback` to scan a time range.';
-  if (messageUrl && targetChannel)
-    return '❌ `message` and `channel` cannot be used together. The target channel is determined from the message link itself.';
   return null;
 }
 
-/**
- * Parses a lookback string like "7d", "2w", "3M", "1y" into a cutoff Date.
- * Returns null if the string is invalid.
- * Units: m=minutes, h=hours, d=days, w=weeks, M=months, y=years
- */
-export function parseLookback(value: string): Date | null {
-  const match = value.trim().match(/^(\d+(?:\.\d+)?)(m|h|d|w|M|y)$/);
-  if (!match) return null;
-  const amount = parseFloat(match[1]);
-  const unit = match[2];
-  const ms: Record<string, number> = {
-    m: 60_000,
-    h: 3_600_000,
-    d: 86_400_000,
-    w: 7 * 86_400_000,
-    M: 30 * 86_400_000,
-    y: 365 * 86_400_000,
-  };
-  return new Date(Date.now() - amount * ms[unit]);
-}
+// DISABLED: parseLookback — only needed for batch scanning.
+// export function parseLookback(value: string): Date | null { ... }
 
-/**
- * Resolves and validates the scan channel from the interaction.
- * Returns the TextChannel to scan, or an error string.
- */
-export function resolveScanChannel(
-  interaction: ChatInputCommandInteraction,
-  targetChannelOption: import('discord.js').GuildBasedChannel | null,
-): TextChannel | string {
-  const replyChannel = interaction.channel;
-  if (!replyChannel || !(replyChannel instanceof TextChannel)) {
-    return '❌ This command must be used in a text channel.';
-  }
-  if (!targetChannelOption) return replyChannel;
-  if (!(targetChannelOption instanceof TextChannel)) {
-    return '❌ Target channel must be a text channel.';
-  }
-  return targetChannelOption;
-}
+// DISABLED: resolveScanChannel — only needed for batch scanning.
+// export function resolveScanChannel(...): TextChannel | string { ... }
