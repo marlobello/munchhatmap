@@ -3,7 +3,7 @@ import { DefaultAzureCredential, getBearerTokenProvider } from '@azure/identity'
 
 const endpoint   = process.env.AZURE_OPENAI_ENDPOINT ?? '';
 const apiKey     = process.env.AZURE_OPENAI_API_KEY   ?? ''; // only used for local dev
-const deployment = process.env.AZURE_OPENAI_DEPLOYMENT ?? 'gpt-4o-mini';
+const deployment = process.env.AZURE_OPENAI_DEPLOYMENT ?? 'gpt-5-mini';
 
 let _client: AzureOpenAI | null = null;
 

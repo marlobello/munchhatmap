@@ -102,7 +102,7 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
             // AZURE_OPENAI_API_KEY removed — Azure OpenAI accessed via managed identity
             {
               name: 'AZURE_OPENAI_DEPLOYMENT'
-              value: 'gpt-4o-mini'
+              value: 'gpt-5-mini'
             }
             // Blob storage — managed identity auth; only account name needed (no key)
             {

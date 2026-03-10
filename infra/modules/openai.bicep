@@ -1,5 +1,5 @@
 // Azure OpenAI — used for intelligent geocoding from message text and image vision.
-// Deployed to eastus for broadest gpt-4o-mini model availability.
+// Deployed to eastus for broadest model availability.
 // Cost: pay-per-token (GlobalStandard), no reserved capacity — minimises idle cost.
 
 param name string
@@ -20,9 +20,9 @@ resource openAiAccount 'Microsoft.CognitiveServices/accounts@2023-05-01' = {
   }
 }
 
-resource gpt4oMiniDeployment 'Microsoft.CognitiveServices/accounts/deployments@2023-05-01' = {
+resource gpt5MiniDeployment 'Microsoft.CognitiveServices/accounts/deployments@2023-05-01' = {
   parent: openAiAccount
-  name: 'gpt-4o-mini'
+  name: 'gpt-5-mini'
   sku: {
     name: 'GlobalStandard' // Pay-per-token, no reserved TPM — cheapest option
     capacity: 10           // 10K TPM minimum — enough for low-volume geocoding
@@ -30,8 +30,8 @@ resource gpt4oMiniDeployment 'Microsoft.CognitiveServices/accounts/deployments@2
   properties: {
     model: {
       format: 'OpenAI'
-      name: 'gpt-4o-mini'
-      version: '2024-07-18'
+      name: 'gpt-5-mini'
+      version: '2025-01-31'
     }
   }
 }
