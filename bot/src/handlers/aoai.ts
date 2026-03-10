@@ -106,7 +106,7 @@ async function callAoai(
     return null;
   }
   try {
-    const response = await client.chat.completions.create({ model: deployment, temperature: 0, max_completion_tokens: maxTokens, messages });
+    const response = await client.chat.completions.create({ model: deployment, max_completion_tokens: maxTokens, messages });
     return response.choices[0]?.message?.content ?? null;
   } catch (err) {
     // Extract structured detail from OpenAI SDK errors where available
