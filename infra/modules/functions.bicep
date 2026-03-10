@@ -141,11 +141,11 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
         // Discord OAuth2 client secret and JWT session secret — from Key Vault
         {
           name: 'DISCORD_CLIENT_SECRET'
-          value: '@Microsoft.KeyVault(VaultName=${split(keyVaultUri, '/')[2]};SecretName=discord-oauth-client-secret)'
+          value: '@Microsoft.KeyVault(SecretUri=${keyVaultUri}secrets/discord-oauth-client-secret/)'
         }
         {
           name: 'SESSION_SECRET'
-          value: '@Microsoft.KeyVault(VaultName=${split(keyVaultUri, '/')[2]};SecretName=session-secret)'
+          value: '@Microsoft.KeyVault(SecretUri=${keyVaultUri}secrets/session-secret/)'
         }
       ]
       cors: {
