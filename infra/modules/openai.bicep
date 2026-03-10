@@ -31,7 +31,7 @@ resource gpt5MiniDeployment 'Microsoft.CognitiveServices/accounts/deployments@20
     model: {
       format: 'OpenAI'
       name: 'gpt-5-mini'
-      version: '2025-01-31'
+      version: '2025-08-07'
     }
   }
 }
