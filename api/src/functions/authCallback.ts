@@ -46,7 +46,7 @@ async function authCallbackHandler(
     if (!tokenRes.ok) {
       const err = await tokenRes.text();
       context.error('Discord token exchange failed:', err);
-      return { status: 401, body: JSON.stringify({ error: 'Discord token exchange failed' }) };
+      return { status: 401, body: JSON.stringify({ error: 'Discord token exchange failed', detail: err }) };
     }
 
     const tokenData = (await tokenRes.json()) as { access_token: string };
