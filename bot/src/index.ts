@@ -1,5 +1,6 @@
 import { Client, GatewayIntentBits, Events, REST, Routes, SlashCommandBuilder, ChatInputCommandInteraction, ChannelType } from 'discord.js';
 import { handleMessage } from './handlers/messageHandler.js';
+import { handleMessageUpdate } from './handlers/messageUpdateHandler.js';
 import { handleImport } from './handlers/importHandler/index.js';
 
 process.on('unhandledRejection', (reason) => {
@@ -100,6 +101,12 @@ async function registerCommands(appId: string, guildId: string): Promise<void> {
 client.on(Events.MessageCreate, (message) => {
   handleMessage(message).catch((err) => {
     console.error('[bot] Unhandled error in messageCreate handler:', err);
+  });
+});
+
+client.on(Events.MessageUpdate, (oldMessage, newMessage) => {
+  handleMessageUpdate(oldMessage, newMessage).catch((err) => {
+    console.error('[bot] Unhandled error in messageUpdate handler:', err);
   });
 });
 
