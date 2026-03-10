@@ -10,8 +10,8 @@
 
 import { ChatInputCommandInteraction } from 'discord.js';
 import {
-  checkPermissions,
-  checkCooldown,
+  // DISABLED: checkPermissions — only needed for batch scan ownership filtering
+  // DISABLED: checkCooldown — only needed to rate-limit expensive batch scans
   validateOptions,
   // DISABLED: parseLookback,
   // DISABLED: resolveScanChannel,
@@ -25,7 +25,8 @@ export { Verbosity };
 export type { FailedMessage, ScanResult } from './types.js';
 
 export async function handleImport(interaction: ChatInputCommandInteraction): Promise<void> {
-  const { elevated, filterUserId: _filterUserId } = checkPermissions(interaction);
+  // DISABLED: checkPermissions / filterUserId — any user may import any message
+  // const { elevated, filterUserId } = checkPermissions(interaction);
 
   const verbosity = (interaction.options.getString('verbosity') ?? 'standard') as Verbosity;
   const messageUrl = interaction.options.getString('message');
@@ -42,21 +43,8 @@ export async function handleImport(interaction: ChatInputCommandInteraction): Pr
     return;
   }
 
-  // DISABLED: lookback parsing
-  // DISABLED: resolveScanChannel
-  // DISABLED: checkCooldown (only relevant for batch scans; single message imports are fast)
-
-  // Cooldown still applies for non-elevated users even on single imports
-  const scanChannelId = interaction.channelId ?? 'unknown';
-  const cooldownMs = checkCooldown(interaction.user.id, scanChannelId, elevated);
-  if (cooldownMs > 0) {
-    const mins = Math.ceil(cooldownMs / 60000);
-    await interaction.reply({
-      content: `⏳ Please wait ${mins} more minute${mins !== 1 ? 's' : ''} before running the import again.`,
-      ephemeral: true,
-    });
-    return;
-  }
+  // DISABLED: lookback parsing, resolveScanChannel, checkCooldown — batch scan only
+  // Cooldown was designed to rate-limit expensive channel sweeps; not needed for single imports.
 
   await interaction.deferReply();
   await handleSingleMessage(interaction, messageUrl!, forceLocation, force, verbosity);
