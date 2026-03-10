@@ -29,7 +29,7 @@ jobs:
         run: |
           az group create \
             --name rg-munchhatmap-prod \
-            --location eastus \
+            --location centralus \
             --tags project=munchhatmap environment=${{ github.event.inputs.environment }} \
             --output none
 
