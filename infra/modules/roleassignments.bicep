@@ -9,6 +9,7 @@
 param cosmosAccountName string
 param openAiAccountName string
 param storageAccountName string
+param keyVaultName string
 
 param botPrincipalId string
 param functionPrincipalId string
@@ -106,6 +107,35 @@ resource apiBlobDelegator 'Microsoft.Authorization/roleAssignments@2022-04-01' =
   scope: storageAccount
   properties: {
     roleDefinitionId: storageBlobDelegatorRole
+    principalId: functionPrincipalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+// ── Key Vault ─────────────────────────────────────────────────────────────────
+// "Key Vault Secrets User" — allows reading secrets (needed for KV references in Functions app settings)
+
+var keyVaultSecretsUserRole = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '4633458b-17de-408a-b874-0445c86b69e6')
+
+resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' existing = {
+  name: keyVaultName
+}
+
+resource botKvRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: 'd981bb39-5e78-5169-b0fc-6c324bec3897'
+  scope: keyVault
+  properties: {
+    roleDefinitionId: keyVaultSecretsUserRole
+    principalId: botPrincipalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+resource apiKvRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: 'e58ad255-b34e-5259-874b-849df91bbc71'
+  scope: keyVault
+  properties: {
+    roleDefinitionId: keyVaultSecretsUserRole
     principalId: functionPrincipalId
     principalType: 'ServicePrincipal'
   }

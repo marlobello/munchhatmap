@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.41.2.15936",
-      "templateHash": "8681130153858029672"
+      "templateHash": "15201110166974054225"
     }
   },
   "parameters": {
@@ -1182,6 +1182,9 @@
           "storageAccountName": {
             "value": "[reference(resourceId('Microsoft.Resources/deployments', 'functions'), '2025-04-01').outputs.storageAccountName.value]"
           },
+          "keyVaultName": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'keyVault'), '2025-04-01').outputs.keyVaultName.value]"
+          },
           "botPrincipalId": {
             "value": "[reference(resourceId('Microsoft.Resources/deployments', 'identities'), '2025-04-01').outputs.botIdentityPrincipalId.value]"
           },
@@ -1196,7 +1199,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.41.2.15936",
-              "templateHash": "16070115886182257723"
+              "templateHash": "13344450514501454948"
             }
           },
           "parameters": {
@@ -1207,6 +1210,9 @@
               "type": "string"
             },
             "storageAccountName": {
+              "type": "string"
+            },
+            "keyVaultName": {
               "type": "string"
             },
             "botPrincipalId": {
@@ -1221,7 +1227,8 @@
             "cognitiveServicesOpenAiUserRole": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '5e0bd9bd-7b93-4f28-af87-19fc36ad61bd')]",
             "storageBlobDataContributorRole": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'ba92f5b4-2d11-453d-a403-e96b0029c9fe')]",
             "storageBlobDataReaderRole": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '2a2b9908-6ea1-4ae2-8e65-a410df84e7d1')]",
-            "storageBlobDelegatorRole": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'db58b8e5-c6ad-4a2a-8342-4190687cbf4a')]"
+            "storageBlobDelegatorRole": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'db58b8e5-c6ad-4a2a-8342-4190687cbf4a')]",
+            "keyVaultSecretsUserRole": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '4633458b-17de-408a-b874-0445c86b69e6')]"
           },
           "resources": [
             {
@@ -1298,6 +1305,28 @@
                 "principalId": "[parameters('functionPrincipalId')]",
                 "principalType": "ServicePrincipal"
               }
+            },
+            {
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "scope": "[resourceId('Microsoft.KeyVault/vaults', parameters('keyVaultName'))]",
+              "name": "d981bb39-5e78-5169-b0fc-6c324bec3897",
+              "properties": {
+                "roleDefinitionId": "[variables('keyVaultSecretsUserRole')]",
+                "principalId": "[parameters('botPrincipalId')]",
+                "principalType": "ServicePrincipal"
+              }
+            },
+            {
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "scope": "[resourceId('Microsoft.KeyVault/vaults', parameters('keyVaultName'))]",
+              "name": "e58ad255-b34e-5259-874b-849df91bbc71",
+              "properties": {
+                "roleDefinitionId": "[variables('keyVaultSecretsUserRole')]",
+                "principalId": "[parameters('functionPrincipalId')]",
+                "principalType": "ServicePrincipal"
+              }
             }
           ]
         }
@@ -1306,6 +1335,7 @@
         "[resourceId('Microsoft.Resources/deployments', 'cosmosDb')]",
         "[resourceId('Microsoft.Resources/deployments', 'functions')]",
         "[resourceId('Microsoft.Resources/deployments', 'identities')]",
+        "[resourceId('Microsoft.Resources/deployments', 'keyVault')]",
         "[resourceId('Microsoft.Resources/deployments', 'openAi')]"
       ]
     },

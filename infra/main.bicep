@@ -155,6 +155,7 @@ module roleAssignments 'modules/roleassignments.bicep' = {
     cosmosAccountName:  cosmosDb.outputs.cosmosAccountName
     openAiAccountName:  openAi.outputs.accountName
     storageAccountName: functions.outputs.storageAccountName
+    keyVaultName:       keyVault.outputs.keyVaultName
     botPrincipalId:      identities.outputs.botIdentityPrincipalId
     functionPrincipalId: identities.outputs.functionIdentityPrincipalId
   }
