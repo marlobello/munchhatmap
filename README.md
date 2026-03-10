@@ -13,6 +13,8 @@ A Discord bot that drops a hat pin on a live map every time someone posts a phot
 3. A hat pin is dropped on the map at that location with your photo, username, and a link back to the original message.
 4. Use `/munchhat-import message:<url>` to import a specific past post by its Discord message link.
 
+> The bot also fires when a message is **edited** to add the tag or attach an image — useful when the tag or photo is added after the initial post.
+
 ---
 
 ## Architecture
@@ -52,7 +54,7 @@ All geocoding calls return `{lat, lng, country, state, place_name}` in a single 
 │   ├── deploy-bot.yml          Build & push Docker image → Container App (SHA-tagged, npm audit)
 │   ├── deploy-api.yml          Build & deploy Azure Functions (npm audit)
 │   ├── deploy-frontend.yml     Deploy static site to Azure Static Web Apps
-│   └── deploy-infrastructure.yml  Bicep IaC deployment
+│   └── deploy-infrastructure.yml  Bicep IaC deployment + auto-triggers bot & API redeploy
 ├── infra/                      Bicep infrastructure-as-code
 │   └── modules/
 │       ├── openai.bicep        Azure OpenAI resource + gpt-4o-mini deployment
@@ -60,25 +62,39 @@ All geocoding calls return `{lat, lng, country, state, place_name}` in a single 
 ├── bot/                        Discord Gateway bot (Node.js / TypeScript)
 │   ├── src/
 │   │   ├── handlers/
-│   │   │   ├── aoai.ts           Azure OpenAI geocoding (text, vision, reverse)
-│   │   │   ├── pinProcessor.ts   Three-step geocoding pipeline
-│   │   │   ├── messageHandler.ts Live message handler
-│   │   │   ├── importHandler.ts  /munchhat-import slash command
-│   │   │   ├── exif.ts           GPS EXIF extraction
-│   │   │   └── db.ts             Cosmos DB writes
+│   │   │   ├── aoai.ts                Azure OpenAI geocoding (text, vision, reverse)
+│   │   │   ├── pinProcessor.ts        Three-step geocoding pipeline
+│   │   │   ├── messageHandler.ts      Live messageCreate handler
+│   │   │   ├── messageUpdateHandler.ts  messageUpdate handler (edits with tag/image)
+│   │   │   ├── importHandler/         /munchhat-import slash command (split into modules)
+│   │   │   ├── exif.ts                GPS EXIF extraction
+│   │   │   └── db.ts                  Cosmos DB reads/writes
 │   │   └── types/mapPin.ts
 │   └── Dockerfile
 ├── api/                        Azure Functions API (TypeScript)
-│   └── src/functions/
-│       ├── getPins.ts            GET /api/getPins
-│       └── getStats.ts           GET /api/getStats
+│   └── src/
+│       ├── functions/
+│       │   ├── getPins.ts         GET /api/getPins
+│       │   ├── getStats.ts        GET /api/getStats
+│       │   ├── updatePin.ts       PATCH /api/updatePin
+│       │   ├── deletePin.ts       DELETE /api/deletePin
+│       │   ├── authLogin.ts       GET /api/auth/login
+│       │   ├── authCallback.ts    GET /api/auth/callback
+│       │   ├── authExchange.ts    GET /api/auth/exchange
+│       │   ├── authLogout.ts      GET /api/auth/logout
+│       │   └── authMe.ts          GET /api/auth/me
+│       └── shared/
+│           ├── auth.ts            JWT sign/verify, session user, guild membership
+│           ├── db.ts              Cosmos DB client + pin CRUD helpers
+│           ├── aoai.ts            Reverse geocoding for pin relocation
+│           └── response.ts        Shared CORS headers + JSON/redirect response helpers
 ├── frontend/                   Static map page (HTML + vanilla JS + Leaflet)
 │   ├── index.html
 │   ├── munchhat.png            Hat logo (favicon, header, map markers)
 │   └── js/
-│       ├── main.js
+│       ├── main.js             Auth flow, pin fetch, user filter control
 │       ├── config.js           Runtime config (API base URL)
-│       ├── map.js              Leaflet map + markercluster rendering
+│       ├── map.js              Leaflet map + markercluster + drag/delete interaction
 │       └── stats.js            Stats panel (leaderboard, states, countries)
 ├── munchhat.png                Brand logo
 ├── .env.example
@@ -124,12 +140,12 @@ az deployment group create \
 ```bash
 KV=munchhatmap-kv-prod
 
-az keyvault secret set --vault-name $KV --name discord-bot-token   --value "YOUR_BOT_TOKEN"
-az keyvault secret set --vault-name $KV --name cosmos-db-endpoint  --value "https://YOUR_COSMOS_ACCOUNT.documents.azure.com:443/"
-az keyvault secret set --vault-name $KV --name cosmos-db-key       --value "YOUR_COSMOS_PRIMARY_KEY"
-az keyvault secret set --vault-name $KV --name aoai-endpoint       --value "https://YOUR_AOAI_RESOURCE.openai.azure.com/"
-az keyvault secret set --vault-name $KV --name aoai-key            --value "YOUR_AOAI_KEY"
+az keyvault secret set --vault-name $KV --name discord-bot-token          --value "YOUR_BOT_TOKEN"
+az keyvault secret set --vault-name $KV --name discord-oauth-client-secret --value "YOUR_OAUTH_CLIENT_SECRET"
+az keyvault secret set --vault-name $KV --name session-secret              --value "$(openssl rand -hex 32)"
 ```
+
+> **Managed identity**: The bot and API connect to Cosmos DB and Azure OpenAI via managed identity (no keys stored). Only Discord secrets need to be in Key Vault.
 
 ### 4. GitHub Actions Secrets
 
@@ -207,7 +223,7 @@ Update `js/config.js` to set `window.API_BASE = 'http://localhost:7071/api'` for
 ## Bot Behavior
 
 ### Live messages
-When a message is posted with `#munchhat` or `#munchhatchronicles` and at least one image:
+When a message is posted (or **edited**) with `#munchhat` or `#munchhatchronicles` and at least one image:
 
 1. The three-step geocoding pipeline runs (EXIF → text → vision — see [Geocoding](#geocoding)).
 2. A `MapPin` is saved to Cosmos DB with the resolved coordinates, country, and state.
@@ -215,14 +231,12 @@ When a message is posted with `#munchhat` or `#munchhatchronicles` and at least 
 
 If no location can be determined, the bot replies with guidance on how to fix the post.
 
+**Edit handling**: the bot also listens for `messageUpdate` events. If a message is edited to add the tag or attach an image and no pin exists yet for that message, it is processed identically to a new message. If a pin already exists (e.g. the location has been moved on the map), the edit is silently ignored — use `/munchhat-import force:True` to intentionally overwrite.
+
 ### `/munchhat-import` slash command
 Imports a single qualifying post by Discord message link. Skips messages already in the database (deduplication by message ID). Registers on bot startup per guild.
 
-**Access:**
-- **Admins / MOD role** — can import any message
-- **Everyone else** — can import only their own messages
-
-A **5-minute cooldown** applies per user to prevent quota exhaustion. Admins and MOD role members are exempt.
+**Access:** Any guild member can import any message — there is no ownership restriction on single-message imports.
 
 #### Parameters
 
@@ -263,10 +277,17 @@ A **5-minute cooldown** applies per user to prevent quota exhaustion. Admins and
 
 ## API Endpoints
 
-| Method | Path | Description |
-|---|---|---|
-| `GET` | `/api/getPins` | Returns all `MapPin` records as JSON |
-| `GET` | `/api/getStats` | Returns leaderboard, US states, and countries aggregated from all pins |
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| `GET` | `/api/auth/login` | — | Initiates Discord OAuth2 flow |
+| `GET` | `/api/auth/callback` | — | Handles OAuth2 callback, issues JWT |
+| `GET` | `/api/auth/exchange` | — | Exchanges one-time code for JWT |
+| `GET` | `/api/auth/logout` | — | Clears session |
+| `GET` | `/api/auth/me` | JWT | Returns current session user |
+| `GET` | `/api/getPins` | JWT | Returns all `MapPin` records as JSON (with SAS image URLs) |
+| `GET` | `/api/getStats` | JWT | Returns leaderboard, US states, and countries aggregated from all pins |
+| `PATCH` | `/api/updatePin` | JWT | Moves a pin to new coordinates and re-geocodes metadata. Users may move their own pins; MOD role / admins may move any pin. |
+| `DELETE` | `/api/deletePin` | JWT (elevated) | Permanently deletes a pin. MOD role / admins only. |
 
 ---
 
@@ -282,7 +303,7 @@ interface MapPin {
   username?: string;   // Discord username at time of posting
   lat: number;
   lng: number;
-  imageUrl: string;    // Discord CDN URL
+  imageUrl: string;    // Azure Blob Storage URL (SAS-signed on read); Discord CDN URL for older pins
   createdAt: string;   // ISO 8601
   caption?: string;    // Full message text
   tagUsed?: string;    // "#munchhat" or "#munchhatchronicles"
@@ -298,21 +319,13 @@ Images are permanently stored in **Azure Blob Storage** (`pin-images` container)
 
 ## Frontend Features
 
+- **Discord auth gate** — login with Discord required; guild membership verified before any data is returned
 - **Interactive map** — Leaflet + OpenStreetMap, no API key required
 - **Hat pin markers** — custom MunchHat logo used as the map marker
 - **Marker clustering** — nearby pins group into a numbered badge; exact same-location pins spiderfy on click
 - **Photo popups** — each pin shows the photo, username, date, and a link back to the Discord message
+- **User filter** — dropdown control filters the map to any specific user's pins, with "My pins" as the first option
+- **Draggable pin relocation** — users can drag their own pins to a new location; MOD role / admins can drag any pin. A confirmation dialog is shown before saving. The new location is reverse-geocoded via AOAI.
+- **Pin deletion** — MOD role / admins see a 🗑️ button in each pin popup to permanently delete a pin (with confirmation)
 - **Stats panel** (📊 button) — leaderboard by user, breakdown by US state and country
-
----
-
-## Phase 2: Discord-Members-Only Map
-
-Stub endpoints exist for a future auth gate:
-
-- `GET /api/auth/login` — initiates Discord OAuth2 flow
-- `GET /api/auth/callback` — handles OAuth2 callback
-- `GET /api/auth/logout` — clears session
-
-When implemented, `/api/getPins` will validate a session and verify guild membership before returning data.
 
