@@ -105,7 +105,7 @@ module functions 'modules/functions.bicep' = {
     allowedOrigin: 'https://${staticWebAppCustomDomain}'
     discordClientId: discordClientId
     discordGuildId: discordGuildId
-    discordRedirectUri: 'https://${staticWebAppCustomDomain}/api/auth/callback'
+    discordRedirectUri: 'https://${prefix}-api-${env}.azurewebsites.net/api/auth/callback'
   }
 }
 
