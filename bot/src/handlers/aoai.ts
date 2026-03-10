@@ -146,7 +146,7 @@ export async function geocodeWithText(messageText: string, onRaw?: (raw: string 
   const content = await callAoai([
     { role: 'system', content: GEOCODE_SYSTEM_PROMPT },
     { role: 'user',   content: `Discord message: "${messageText}"` },
-  ], 120, (e) => { apiError = e; });
+  ], 800, (e) => { apiError = e; });
   onRaw?.(content, apiError);
   const result = parseGeocodeResponse(content);
   console.log(`[aoai] text "${messageText.slice(0, 60)}" → ${content?.slice(0, 100)}`);
@@ -170,7 +170,7 @@ export async function geocodeWithImage(imageUrl: string, onRaw?: (raw: string | 
         { type: 'image_url', image_url: { url: imageUrl, detail: 'low' } },
       ],
     },
-  ], 120, (e) => { apiError = e; });
+  ], 800, (e) => { apiError = e; });
   onRaw?.(content, apiError);
   const result = parseGeocodeResponse(content);
   console.log(`[aoai] image → ${content?.slice(0, 100)}`);
