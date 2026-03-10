@@ -74,8 +74,9 @@ function buildPopupContent(pin, canDelete = false) {
   const deleteBtn = canDelete
     ? `<button class="popup-delete-btn" data-pin-id="${escapeAttr(pin.id)}" data-guild-id="${escapeAttr(pin.guildId)}"
          title="Delete pin"
-         style="position:absolute;top:6px;right:6px;background:none;border:none;cursor:pointer;
-                font-size:16px;line-height:1;padding:2px;opacity:0.45;transition:opacity 0.15s"
+         style="position:absolute;bottom:6px;right:6px;background:#f38ba8;color:#1e1e2e;border:none;
+                border-radius:6px;cursor:pointer;font-size:14px;line-height:1;padding:4px 6px;
+                opacity:0.45;transition:opacity 0.15s"
          onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.45'">🗑️</button>`
     : '';
   return `
