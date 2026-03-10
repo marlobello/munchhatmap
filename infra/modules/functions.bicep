@@ -78,6 +78,10 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
   properties: {
     serverFarmId: hostingPlan.id
     httpsOnly: true
+    // Tell the Functions runtime to use the user-assigned identity when resolving
+    // @Microsoft.KeyVault() references in app settings (default would be SystemAssigned
+    // which doesn't exist here and causes KV references to silently return the literal string)
+    keyVaultReferenceIdentity: functionIdentityId
     siteConfig: {
       nodeVersion: '~20'
       appSettings: [

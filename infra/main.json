@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.41.2.15936",
-      "templateHash": "15201110166974054225"
+      "templateHash": "1132739175402731165"
     }
   },
   "parameters": {
@@ -625,7 +625,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.41.2.15936",
-              "templateHash": "16644964858022144508"
+              "templateHash": "8078359091230673032"
             }
           },
           "parameters": {
@@ -734,6 +734,7 @@
               "properties": {
                 "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', format('{0}-plan', parameters('name')))]",
                 "httpsOnly": true,
+                "keyVaultReferenceIdentity": "[parameters('functionIdentityId')]",
                 "siteConfig": {
                   "nodeVersion": "~20",
                   "appSettings": [
