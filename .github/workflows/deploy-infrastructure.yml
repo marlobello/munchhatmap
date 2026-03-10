@@ -49,6 +49,8 @@ jobs:
     needs: deploy
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+
       - name: Trigger Bot redeploy
         run: |
           gh workflow run deploy-bot.yml --ref ${{ github.ref_name }}
