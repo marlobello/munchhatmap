@@ -74,10 +74,9 @@ function buildPopupContent(pin, canDelete = false) {
   const deleteBtn = canDelete
     ? `<button class="popup-delete-btn" data-pin-id="${escapeAttr(pin.id)}" data-guild-id="${escapeAttr(pin.guildId)}"
          title="Delete pin"
-         style="position:absolute;bottom:6px;right:6px;background:transparent;color:#1e1e2e;border:2px solid #a3111a;
+         style="position:absolute;bottom:6px;right:6px;background:transparent;border:2px solid #a3111a;
                 border-radius:6px;cursor:pointer;font-size:14px;line-height:1;padding:4px 6px;
-                opacity:0.6;transition:opacity 0.15s,background 0.15s"
-         onmouseover="this.style.opacity='1';this.style.background='#a3111a'" onmouseout="this.style.opacity='0.6';this.style.background='transparent'">🗑️</button>`
+                opacity:0.6;transition:opacity 0.15s,background 0.15s">🗑️</button>`
     : '';
   return `
     <div class="popup-content" style="position:relative">
@@ -273,6 +272,10 @@ function buildMarker(pin, user, authedFetch, apiBase, cluster) {
     marker.on('popupopen', () => {
       const btn = marker.getPopup().getElement()?.querySelector('.popup-delete-btn');
       if (!btn) return;
+
+      btn.addEventListener('mouseenter', () => { btn.style.opacity = '1'; btn.style.background = '#a3111a'; });
+      btn.addEventListener('mouseleave', () => { btn.style.opacity = '0.6'; btn.style.background = 'transparent'; });
+
       btn.addEventListener('click', async () => {
         marker.closePopup();
         const author = pin.username ? `@${pin.username}` : `<${pin.userId}>`;
