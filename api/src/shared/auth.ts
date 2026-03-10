@@ -1,5 +1,6 @@
 import { SignJWT, jwtVerify, type JWTPayload } from 'jose';
 import { HttpRequest } from '@azure/functions';
+import { randomUUID } from 'crypto';
 
 const TOKEN_COOKIE = 'munchhat_session';
 const JWT_AUDIENCE = 'munchhatmap';
@@ -102,4 +103,26 @@ export function unauthorizedResponse(message = 'Authentication required'): {
     },
     body: JSON.stringify({ error: message }),
   };
+}
+
+// ─── One-time exchange codes ────────────────────────────────────────────────
+// Short-lived codes used to hand off the JWT after OAuth callback without
+// exposing the full token in the URL fragment or browser history.
+
+interface ExchangeEntry { jwt: string; expiresAt: number; }
+const _exchangeCodes = new Map<string, ExchangeEntry>();
+
+/** Creates a one-time code that can be exchanged for the given JWT within 60 seconds. */
+export function createExchangeCode(jwt: string): string {
+  const code = randomUUID();
+  _exchangeCodes.set(code, { jwt, expiresAt: Date.now() + 60_000 });
+  return code;
+}
+
+/** Redeems a one-time code, returning the JWT or null if invalid/expired. Always deletes the code. */
+export function redeemExchangeCode(code: string): string | null {
+  const entry = _exchangeCodes.get(code);
+  _exchangeCodes.delete(code);
+  if (!entry || Date.now() > entry.expiresAt) return null;
+  return entry.jwt;
 }

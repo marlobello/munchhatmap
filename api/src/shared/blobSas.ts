@@ -28,6 +28,9 @@ interface CachedDelegationKey {
   expiresOn: Date;
 }
 let _delegationKey: CachedDelegationKey | null = null;
+// Promise guard: ensures concurrent callers share a single in-flight key fetch
+// rather than each launching their own request when the cache is cold/expired.
+let _delegationKeyPromise: Promise<CachedDelegationKey> | null = null;
 
 function getBlobClient(): BlobServiceClient | null {
   if (!ACCOUNT_NAME) return null;
@@ -47,21 +50,32 @@ function isBlobUrl(url: string): boolean {
 
 /**
  * Returns a cached User Delegation Key, refreshing if it expires within 1 hour.
+ * Uses a promise guard so concurrent requests share a single in-flight fetch.
  */
 async function getDelegationKey(client: BlobServiceClient): Promise<UserDelegationKey> {
   const now = new Date();
-  const refreshThreshold = new Date(now.getTime() + 60 * 60 * 1000); // 1 hour buffer
+  const refreshThreshold = new Date(now.getTime() + 60 * 60 * 1000);
 
   if (_delegationKey && _delegationKey.expiresOn > refreshThreshold) {
     return _delegationKey.key;
   }
 
-  const startsOn = new Date(now.getTime() - 60 * 1000); // 1 min in past to handle clock skew
-  const expiresOn = new Date(now.getTime() + SAS_TTL_HOURS * 60 * 60 * 1000);
+  if (!_delegationKeyPromise) {
+    const startsOn = new Date(now.getTime() - 60 * 1000);
+    const expiresOn = new Date(now.getTime() + SAS_TTL_HOURS * 60 * 60 * 1000);
+    _delegationKeyPromise = client
+      .getUserDelegationKey(startsOn, expiresOn)
+      .then((key) => {
+        const cached: CachedDelegationKey = { key, expiresOn };
+        _delegationKey = cached;
+        return cached;
+      })
+      .finally(() => {
+        _delegationKeyPromise = null;
+      });
+  }
 
-  const key = await client.getUserDelegationKey(startsOn, expiresOn);
-  _delegationKey = { key, expiresOn };
-  return key;
+  return (await _delegationKeyPromise).key;
 }
 
 /**

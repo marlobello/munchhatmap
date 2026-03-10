@@ -30,11 +30,19 @@ logoutBtn.addEventListener('click', (e) => {
   window.location.href = `${API_BASE}/auth/logout`;
 });
 
-// Check for token in URL fragment after OAuth callback redirect
-const hashMatch = window.location.hash.match(/[#&]token=([^&]*)/);
+// Handle OAuth callback: exchange one-time code for JWT, then clear fragment
+const hashMatch = window.location.hash.match(/[#&]code=([^&]*)/);
 if (hashMatch) {
-  localStorage.setItem(TOKEN_KEY, decodeURIComponent(hashMatch[1]));
   history.replaceState(null, '', window.location.pathname + window.location.search);
+  try {
+    const res = await fetch(`${API_BASE}/auth/exchange?code=${encodeURIComponent(hashMatch[1])}`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.token) localStorage.setItem(TOKEN_KEY, data.token);
+    }
+  } catch {
+    // exchange failed — user will see auth gate and can log in again
+  }
 }
 
 // Clear token on logout redirect

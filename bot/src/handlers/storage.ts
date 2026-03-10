@@ -13,6 +13,9 @@ import { extname } from 'path';
 const ACCOUNT_NAME = process.env.AZURE_STORAGE_ACCOUNT_NAME;
 const CONTAINER_NAME = process.env.IMAGE_STORAGE_CONTAINER ?? 'pin-images';
 
+// Only fetch images from Discord CDN — prevents SSRF via crafted message attachments.
+const ALLOWED_IMAGE_HOSTS = /^https:\/\/(cdn\.discordapp\.com|media\.discordapp\.net)\//;
+
 let _blobClient: BlobServiceClient | null = null;
 
 function getBlobClient(): BlobServiceClient | null {
@@ -55,6 +58,12 @@ export async function uploadImageToBlob(
   const client = getBlobClient();
   if (!client) {
     return { url: discordUrl }; // local dev — no storage configured
+  }
+
+  if (!ALLOWED_IMAGE_HOSTS.test(discordUrl)) {
+    const error = `Blocked fetch from non-Discord URL: ${discordUrl}`;
+    console.warn(`[storage] ${error}`);
+    return { url: discordUrl, error };
   }
 
   const ext = extensionFromUrl(discordUrl);

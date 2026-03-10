@@ -50,8 +50,17 @@ async function getStatsHandler(
     const client = getClient();
     const container = client.database(DB_NAME).container(CONTAINER_NAME);
 
+    // Filter by the configured guild to avoid cross-partition fan-out across all guilds.
+    const guildId = process.env.DISCORD_GUILD_ID;
+    const querySpec = guildId
+      ? {
+          query: 'SELECT c.userId, c.username, c.country, c.state FROM c WHERE c.guildId = @guildId',
+          parameters: [{ name: '@guildId', value: guildId }],
+        }
+      : { query: 'SELECT c.userId, c.username, c.country, c.state FROM c' };
+
     const { resources } = await container.items
-      .query<PinStatsRow>('SELECT c.userId, c.username, c.country, c.state FROM c')
+      .query<PinStatsRow>(querySpec)
       .fetchAll();
 
     // Aggregate users

@@ -33,7 +33,8 @@ async function getPinsHandler(
 
     // Replace private blob URLs with time-limited SAS URLs so the browser can load images.
     // Discord CDN URLs (pre-migration pins) are passed through unchanged.
-    await Promise.all(
+    // allSettled: a single SAS failure must not prevent other pins from loading.
+    await Promise.allSettled(
       pins.map(async (pin) => {
         if (pin.imageUrl) {
           pin.imageUrl = await generateSasUrl(pin.imageUrl);

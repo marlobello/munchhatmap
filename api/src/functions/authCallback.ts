@@ -1,12 +1,14 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
-import { signToken, getCookieHeader, isGuildMember, getDiscordUser } from '../shared/auth.js';
+import { signToken, parseCookie, isGuildMember, getDiscordUser, createExchangeCode } from '../shared/auth.js';
 
 /**
- * GET /api/auth/callback?code=...
+ * GET /api/auth/callback?code=...&state=...
  *
- * Handles the Discord OAuth2 redirect. Exchanges the authorization code for an
- * access token, verifies guild membership, then sets a signed JWT session cookie
- * and redirects to the frontend map.
+ * Handles the Discord OAuth2 redirect. Verifies the CSRF state, exchanges the
+ * authorization code for a Discord access token, verifies guild membership, then
+ * issues a one-time exchange code and redirects to the frontend. The frontend
+ * exchanges the code for a JWT via /api/auth/exchange — keeping the full JWT out
+ * of the URL and browser history.
  */
 async function authCallbackHandler(
   request: HttpRequest,
@@ -17,6 +19,15 @@ async function authCallbackHandler(
   const code = request.query.get('code');
   if (!code) {
     return { status: 400, body: JSON.stringify({ error: 'Missing authorization code' }) };
+  }
+
+  // CSRF: verify state param matches the cookie set in authLogin
+  const state = request.query.get('state');
+  const cookieHeader = request.headers.get('cookie') ?? '';
+  const storedState = parseCookie(cookieHeader, 'oauth_state');
+  if (!state || !storedState || state !== storedState) {
+    context.error('OAuth state mismatch — possible CSRF attack');
+    return { status: 400, body: JSON.stringify({ error: 'Invalid OAuth state' }) };
   }
 
   const clientId = process.env.DISCORD_CLIENT_ID;
@@ -46,7 +57,7 @@ async function authCallbackHandler(
     if (!tokenRes.ok) {
       const err = await tokenRes.text();
       context.error('Discord token exchange failed:', err);
-      return { status: 401, body: JSON.stringify({ error: 'Discord token exchange failed', detail: err }) };
+      return { status: 401, body: JSON.stringify({ error: 'Discord token exchange failed' }) };
     }
 
     const tokenData = (await tokenRes.json()) as { access_token: string };
@@ -65,19 +76,22 @@ async function authCallbackHandler(
     // Fetch Discord user profile
     const discordUser = await getDiscordUser(accessToken);
 
-    // Issue signed JWT session cookie
+    // Sign JWT and wrap in a short-lived one-time exchange code.
+    // The code (not the JWT itself) goes in the URL fragment — the frontend immediately
+    // exchanges it via /api/auth/exchange, keeping the full JWT out of browser history.
     const sessionToken = await signToken({
       userId: discordUser.id,
       username: discordUser.username,
       avatar: discordUser.avatar,
     });
+    const exchangeCode = createExchangeCode(sessionToken);
 
     return {
       status: 302,
       headers: {
-        // Pass token in URL fragment — avoids third-party cookie blocking in modern browsers.
-        // Fragment is never sent to the server; frontend reads it and stores in localStorage.
-        Location: `${frontendUrl}#token=${sessionToken}`,
+        Location: `${frontendUrl}#code=${exchangeCode}`,
+        // Clear the CSRF state cookie now that the callback has completed.
+        'Set-Cookie': 'oauth_state=; Path=/api/auth; HttpOnly; Secure; SameSite=Lax; Max-Age=0',
       },
     };
   } catch (err) {
