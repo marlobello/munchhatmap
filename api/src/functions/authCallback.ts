@@ -1,5 +1,6 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import { signToken, parseCookie, isGuildMember, getDiscordUser, createExchangeCode } from '../shared/auth.js';
+import { getAllowedOrigin } from '../shared/response.js';
 
 /**
  * GET /api/auth/callback?code=...&state=...
@@ -33,7 +34,7 @@ async function authCallbackHandler(
   const clientId = process.env.DISCORD_CLIENT_ID;
   const clientSecret = process.env.DISCORD_CLIENT_SECRET;
   const redirectUri = process.env.DISCORD_REDIRECT_URI;
-  const frontendUrl = process.env.ALLOWED_ORIGIN ?? 'https://munchhatmap.dotheneedful.dev';
+  const frontendUrl = getAllowedOrigin();
 
   if (!clientId || !clientSecret || !redirectUri) {
     context.error('Missing OAuth2 config env vars');

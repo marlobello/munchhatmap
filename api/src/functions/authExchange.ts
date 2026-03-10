@@ -1,5 +1,6 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import { redeemExchangeCode } from '../shared/auth.js';
+import { jsonResponse, corsHeaders } from '../shared/response.js';
 
 /**
  * GET /api/auth/exchange?code=...
@@ -15,23 +16,14 @@ async function authExchangeHandler(
   context.log('authExchange invoked');
 
   const code = request.query.get('code');
-  if (!code) {
-    return { status: 400, body: JSON.stringify({ error: 'Missing code' }) };
-  }
+  if (!code) return jsonResponse(400, { error: 'Missing code' });
 
   const jwt = redeemExchangeCode(code);
-  if (!jwt) {
-    return { status: 400, body: JSON.stringify({ error: 'Invalid or expired code' }) };
-  }
+  if (!jwt) return jsonResponse(400, { error: 'Invalid or expired code' });
 
-  const origin = process.env.ALLOWED_ORIGIN ?? 'https://munchhatmap.dotheneedful.dev';
   return {
     status: 200,
-    headers: {
-      'Content-Type': 'application/json',
-      'Access-Control-Allow-Origin': origin,
-      'Access-Control-Allow-Credentials': 'true',
-    },
+    headers: { 'Content-Type': 'application/json', ...corsHeaders() },
     body: JSON.stringify({ token: jwt }),
   };
 }

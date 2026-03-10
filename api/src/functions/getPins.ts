@@ -2,6 +2,7 @@ import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/fu
 import { getPins } from '../shared/db.js';
 import { generateSasUrl } from '../shared/blobSas.js';
 import { getSessionUser, unauthorizedResponse } from '../shared/auth.js';
+import { jsonResponse, corsHeaders } from '../shared/response.js';
 
 /**
  * GET /api/getPins
@@ -44,19 +45,12 @@ async function getPinsHandler(
 
     return {
       status: 200,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': process.env.ALLOWED_ORIGIN ?? 'https://munchhatmap.dotheneedful.dev',
-        'Access-Control-Allow-Credentials': 'true',
-      },
+      headers: { 'Content-Type': 'application/json', ...corsHeaders() },
       body: JSON.stringify(pins),
     };
   } catch (err) {
     context.error('Error fetching pins:', err instanceof Error ? err.message : err);
-    return {
-      status: 500,
-      body: JSON.stringify({ error: 'Failed to retrieve pins' }),
-    };
+    return jsonResponse(500, { error: 'Failed to retrieve pins' });
   }
 }
 

@@ -1,21 +1,17 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
+import { getAllowedOrigin } from '../shared/response.js';
 
 /**
  * GET /api/auth/logout
  *
- * Clears the session cookie and redirects to the frontend.
+ * Redirects to the frontend with ?logout=1. Frontend clears the localStorage token.
  */
 async function authLogoutHandler(
   _request: HttpRequest,
   context: InvocationContext,
 ): Promise<HttpResponseInit> {
   context.log('authLogout invoked');
-  const frontendUrl = process.env.ALLOWED_ORIGIN ?? 'https://munchhatmap.dotheneedful.dev';
-  // Token is stored in localStorage; frontend clears it on logout redirect
-  return {
-    status: 302,
-    headers: { Location: `${frontendUrl}?logout=1` },
-  };
+  return { status: 302, headers: { Location: `${getAllowedOrigin()}?logout=1` } };
 }
 
 app.http('authLogout', {

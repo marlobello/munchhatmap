@@ -13,4 +13,5 @@ export interface MapPin {
   tagUsed?: string;
   country?: string;
   state?: string;
+  place_name?: string;
 }

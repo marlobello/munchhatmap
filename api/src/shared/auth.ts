@@ -1,6 +1,7 @@
 import { SignJWT, jwtVerify, type JWTPayload } from 'jose';
 import { HttpRequest } from '@azure/functions';
 import { randomUUID } from 'crypto';
+import { getAllowedOrigin } from './response.js';
 
 const TOKEN_COOKIE = 'munchhat_session';
 const JWT_AUDIENCE = 'munchhatmap';
@@ -38,16 +39,6 @@ export async function verifyToken(token: string): Promise<(JWTPayload & SessionU
   } catch {
     return null;
   }
-}
-
-export function getCookieHeader(token: string): string {
-  const maxAge = 7 * 24 * 60 * 60; // 7 days in seconds
-  // SameSite=None required because the API is cross-origin from the frontend (azurewebsites.net ≠ custom domain)
-  return `${TOKEN_COOKIE}=${token}; Path=/; HttpOnly; Secure; SameSite=None; Max-Age=${maxAge}`;
-}
-
-export function getClearCookieHeader(): string {
-  return `${TOKEN_COOKIE}=; Path=/; HttpOnly; Secure; SameSite=None; Max-Age=0`;
 }
 
 export function parseCookie(cookieHeader: string, name: string): string | null {
@@ -98,7 +89,7 @@ export function unauthorizedResponse(message = 'Authentication required'): {
     status: 401,
     headers: {
       'Content-Type': 'application/json',
-      'Access-Control-Allow-Origin': process.env.ALLOWED_ORIGIN ?? 'https://munchhatmap.dotheneedful.dev',
+      'Access-Control-Allow-Origin': getAllowedOrigin(),
       'Access-Control-Allow-Credentials': 'true',
     },
     body: JSON.stringify({ error: message }),

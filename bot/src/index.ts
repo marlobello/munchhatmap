@@ -1,6 +1,6 @@
 import { Client, GatewayIntentBits, Events, REST, Routes, SlashCommandBuilder, ChatInputCommandInteraction, ChannelType } from 'discord.js';
 import { handleMessage } from './handlers/messageHandler.js';
-import { handleImport } from './handlers/importHandler.js';
+import { handleImport } from './handlers/importHandler/index.js';
 
 process.on('unhandledRejection', (reason) => {
   const message = reason instanceof Error ? reason.message : String(reason);

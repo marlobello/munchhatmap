@@ -1,23 +1,10 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
-import { CosmosClient } from '@azure/cosmos';
-import { DefaultAzureCredential } from '@azure/identity';
+import { getCosmosClient } from '../shared/db.js';
 import { getSessionUser, unauthorizedResponse } from '../shared/auth.js';
+import { jsonResponse, corsHeaders } from '../shared/response.js';
 
 const DB_NAME = 'munchhatmap';
 const CONTAINER_NAME = 'pins';
-
-let _client: CosmosClient | null = null;
-
-function getClient(): CosmosClient {
-  if (_client) return _client;
-  const endpoint = process.env.COSMOS_DB_ENDPOINT;
-  if (!endpoint) throw new Error('COSMOS_DB_ENDPOINT environment variable is required');
-  const key = process.env.COSMOS_DB_KEY;
-  _client = key
-    ? new CosmosClient({ endpoint, key }) // local dev fallback
-    : new CosmosClient({ endpoint, aadCredentials: new DefaultAzureCredential() });
-  return _client;
-}
 
 interface PinStatsRow {
   userId: string;
@@ -32,6 +19,24 @@ interface StatsResponse {
   countries: Array<{ name: string; count: number }>;
 }
 
+/** Aggregates an array of items by a string field, returning sorted [{name, count}]. */
+function aggregateByField<T>(
+  items: T[],
+  keyFn: (item: T) => string | undefined,
+  filter?: (item: T) => boolean,
+): Array<{ name: string; count: number }> {
+  const map = new Map<string, number>();
+  for (const item of items) {
+    if (filter && !filter(item)) continue;
+    const key = keyFn(item);
+    if (!key) continue;
+    map.set(key, (map.get(key) ?? 0) + 1);
+  }
+  return [...map.entries()]
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count);
+}
+
 async function getStatsHandler(
   request: HttpRequest,
   context: InvocationContext,
@@ -41,16 +46,14 @@ async function getStatsHandler(
   const user = await getSessionUser(request);
   if (!user) return unauthorizedResponse();
 
-  const endpoint = process.env.COSMOS_DB_ENDPOINT;
-  if (!endpoint) {
-    return { status: 500, body: JSON.stringify({ error: 'Missing Cosmos DB configuration' }) };
+  if (!process.env.COSMOS_DB_ENDPOINT) {
+    return jsonResponse(500, { error: 'Missing Cosmos DB configuration' });
   }
 
   try {
-    const client = getClient();
-    const container = client.database(DB_NAME).container(CONTAINER_NAME);
+    const container = getCosmosClient().database(DB_NAME).container(CONTAINER_NAME);
 
-    // Filter by the configured guild to avoid cross-partition fan-out across all guilds.
+    // Filter by configured guild to avoid cross-partition fan-out.
     const guildId = process.env.DISCORD_GUILD_ID;
     const querySpec = guildId
       ? {
@@ -59,11 +62,9 @@ async function getStatsHandler(
         }
       : { query: 'SELECT c.userId, c.username, c.country, c.state FROM c' };
 
-    const { resources } = await container.items
-      .query<PinStatsRow>(querySpec)
-      .fetchAll();
+    const { resources } = await container.items.query<PinStatsRow>(querySpec).fetchAll();
 
-    // Aggregate users
+    // Aggregate users (special case: track latest username)
     const userMap = new Map<string, { username: string; count: number }>();
     for (const pin of resources) {
       const existing = userMap.get(pin.userId);
@@ -78,42 +79,22 @@ async function getStatsHandler(
       .map(([userId, { username, count }]) => ({ userId, username, count }))
       .sort((a, b) => b.count - a.count);
 
-    // Aggregate US states
-    const stateMap = new Map<string, number>();
-    for (const pin of resources) {
-      if (pin.country?.toLowerCase().includes('united states') && pin.state) {
-        stateMap.set(pin.state, (stateMap.get(pin.state) ?? 0) + 1);
-      }
-    }
-    const states = [...stateMap.entries()]
-      .map(([name, count]) => ({ name, count }))
-      .sort((a, b) => b.count - a.count);
+    const isUS = (p: PinStatsRow) => !!p.country?.toLowerCase().includes('united states');
 
-    // Aggregate foreign countries
-    const countryMap = new Map<string, number>();
-    for (const pin of resources) {
-      if (pin.country && !pin.country.toLowerCase().includes('united states')) {
-        countryMap.set(pin.country, (countryMap.get(pin.country) ?? 0) + 1);
-      }
-    }
-    const countries = [...countryMap.entries()]
-      .map(([name, count]) => ({ name, count }))
-      .sort((a, b) => b.count - a.count);
-
-    const stats: StatsResponse = { users, states, countries };
+    const stats: StatsResponse = {
+      users,
+      states:    aggregateByField(resources, (p) => p.state,   (p) => isUS(p) && !!p.state),
+      countries: aggregateByField(resources, (p) => p.country, (p) => !isUS(p)),
+    };
 
     return {
       status: 200,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': process.env.ALLOWED_ORIGIN ?? 'https://munchhatmap.dotheneedful.dev',
-        'Access-Control-Allow-Credentials': 'true',
-      },
+      headers: { 'Content-Type': 'application/json', ...corsHeaders() },
       body: JSON.stringify(stats),
     };
   } catch (err) {
     context.error('Error computing stats:', err instanceof Error ? err.message : err);
-    return { status: 500, body: JSON.stringify({ error: 'Failed to compute stats' }) };
+    return jsonResponse(500, { error: 'Failed to compute stats' });
   }
 }
 

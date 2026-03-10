@@ -1,5 +1,6 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import { getSessionUser } from '../shared/auth.js';
+import { jsonResponse } from '../shared/response.js';
 
 /**
  * GET /api/auth/me
@@ -13,30 +14,8 @@ async function authMeHandler(
 ): Promise<HttpResponseInit> {
   context.log('authMe invoked');
   const user = await getSessionUser(request);
-  if (!user) {
-    return {
-      status: 401,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': process.env.ALLOWED_ORIGIN ?? 'https://munchhatmap.dotheneedful.dev',
-        'Access-Control-Allow-Credentials': 'true',
-      },
-      body: JSON.stringify({ error: 'Not authenticated' }),
-    };
-  }
-  return {
-    status: 200,
-    headers: {
-      'Content-Type': 'application/json',
-      'Access-Control-Allow-Origin': process.env.ALLOWED_ORIGIN ?? 'https://munchhatmap.dotheneedful.dev',
-      'Access-Control-Allow-Credentials': 'true',
-    },
-    body: JSON.stringify({
-      userId: user.userId,
-      username: user.username,
-      avatar: user.avatar,
-    }),
-  };
+  if (!user) return jsonResponse(401, { error: 'Not authenticated' });
+  return jsonResponse(200, { userId: user.userId, username: user.username, avatar: user.avatar });
 }
 
 app.http('authMe', {

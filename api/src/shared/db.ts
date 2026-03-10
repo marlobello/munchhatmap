@@ -7,7 +7,7 @@ const CONTAINER_NAME = 'pins';
 
 let _client: CosmosClient | null = null;
 
-function getClient(): CosmosClient {
+export function getCosmosClient(): CosmosClient {
   if (_client) return _client;
   const endpoint = process.env.COSMOS_DB_ENDPOINT;
   if (!endpoint) throw new Error('COSMOS_DB_ENDPOINT environment variable is required');
@@ -27,7 +27,7 @@ export async function getPins(filters: {
   channelId?: string;
   userId?: string;
 }): Promise<MapPin[]> {
-  const client = getClient();
+  const client = getCosmosClient();
   const container = client.database(DB_NAME).container(CONTAINER_NAME);
 
   const conditions: string[] = [];
