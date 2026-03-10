@@ -3,7 +3,7 @@ import { DefaultAzureCredential, getBearerTokenProvider } from '@azure/identity'
 
 const endpoint   = process.env.AZURE_OPENAI_ENDPOINT ?? '';
 const apiKey     = process.env.AZURE_OPENAI_API_KEY   ?? ''; // only used for local dev
-const deployment = process.env.AZURE_OPENAI_DEPLOYMENT ?? 'gpt-5-mini';
+const deployment = process.env.AZURE_OPENAI_DEPLOYMENT ?? 'gpt-4.1';
 
 let _client: AzureOpenAI | null = null;
 
@@ -95,7 +95,7 @@ function parseReverseResponse(content: string | null): Pick<LocationInfo, 'count
 
 async function callAoai(
   messages: Parameters<AzureOpenAI['chat']['completions']['create']>[0]['messages'],
-  maxTokens = 500,
+  maxTokens = 256,
   onError?: (err: string) => void,
 ): Promise<string | null> {
   const client = getClient();
@@ -146,7 +146,7 @@ export async function geocodeWithText(messageText: string, onRaw?: (raw: string 
   const content = await callAoai([
     { role: 'system', content: GEOCODE_SYSTEM_PROMPT },
     { role: 'user',   content: `Discord message: "${messageText}"` },
-  ], 800, (e) => { apiError = e; });
+  ], 256, (e) => { apiError = e; });
   onRaw?.(content, apiError);
   const result = parseGeocodeResponse(content);
   console.log(`[aoai] text "${messageText.slice(0, 60)}" → ${content?.slice(0, 100)}`);
@@ -170,7 +170,7 @@ export async function geocodeWithImage(imageUrl: string, onRaw?: (raw: string | 
         { type: 'image_url', image_url: { url: imageUrl, detail: 'low' } },
       ],
     },
-  ], 800, (e) => { apiError = e; });
+  ], 256, (e) => { apiError = e; });
   onRaw?.(content, apiError);
   const result = parseGeocodeResponse(content);
   console.log(`[aoai] image → ${content?.slice(0, 100)}`);
@@ -188,7 +188,7 @@ export async function reverseGeocodeWithAoai(lat: number, lng: number, onRaw?: (
   const content = await callAoai([
     { role: 'system', content: REVERSE_SYSTEM_PROMPT },
     { role: 'user',   content: `Coordinates: lat=${lat}, lng=${lng}` },
-  ], 200, (e) => { apiError = e; });
+  ], 256, (e) => { apiError = e; });
   onRaw?.(content, apiError);
   const meta = parseReverseResponse(content);
   if (!meta) return { lat, lng };

@@ -14,11 +14,11 @@
  * Usage (from repo root):
  *   COSMOS_DB_ENDPOINT=... COSMOS_DB_KEY=... \
  *   AZURE_OPENAI_ENDPOINT=... AZURE_OPENAI_API_KEY=... \
- *   AZURE_OPENAI_DEPLOYMENT=gpt-5-mini \
+ *   AZURE_OPENAI_DEPLOYMENT=gpt-4.1 \
  *   npx tsx bot/scripts/regeocodeAllPins.ts
  *
  * Or via managed identity (production):
- *   COSMOS_DB_ENDPOINT=... AZURE_OPENAI_ENDPOINT=... AZURE_OPENAI_DEPLOYMENT=gpt-5-mini \
+ *   COSMOS_DB_ENDPOINT=... AZURE_OPENAI_ENDPOINT=... AZURE_OPENAI_DEPLOYMENT=gpt-4.1 \
  *   npx tsx bot/scripts/regeocodeAllPins.ts
  */
 

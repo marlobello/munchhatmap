@@ -20,9 +20,9 @@ resource openAiAccount 'Microsoft.CognitiveServices/accounts@2023-05-01' = {
   }
 }
 
-resource gpt5MiniDeployment 'Microsoft.CognitiveServices/accounts/deployments@2023-05-01' = {
+resource gpt41Deployment 'Microsoft.CognitiveServices/accounts/deployments@2023-05-01' = {
   parent: openAiAccount
-  name: 'gpt-5-mini'
+  name: 'gpt-4.1'
   sku: {
     name: 'GlobalStandard' // Pay-per-token, no reserved TPM — cheapest option
     capacity: 10           // 10K TPM minimum — enough for low-volume geocoding
@@ -30,8 +30,8 @@ resource gpt5MiniDeployment 'Microsoft.CognitiveServices/accounts/deployments@20
   properties: {
     model: {
       format: 'OpenAI'
-      name: 'gpt-5-mini'
-      version: '2025-08-07'
+      name: 'gpt-4.1'
+      version: '2025-04-14'
     }
   }
 }
