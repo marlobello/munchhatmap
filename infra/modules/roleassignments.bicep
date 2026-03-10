@@ -1,6 +1,10 @@
 // Role assignments for all managed identities.
 // Defined in a module so that existing resource lookups use string parameters
 // (compile-time knowable), avoiding BCP120 errors in main.bicep.
+//
+// Resource names (GUIDs) are hardcoded to match the existing assignments in Azure.
+// These were created before IaC managed them; using their existing GUIDs ensures
+// Bicep does an idempotent update rather than failing with RoleAssignmentExists.
 
 param cosmosAccountName string
 param openAiAccountName string
@@ -18,7 +22,7 @@ resource cosmosAccount 'Microsoft.DocumentDB/databaseAccounts@2024-05-15' existi
 }
 
 resource botCosmosRole 'Microsoft.DocumentDB/databaseAccounts/sqlRoleAssignments@2024-05-15' = {
-  name: guid(cosmosAccount.id, botPrincipalId, cosmosContributorRoleId)
+  name: 'd1dd7070-84e6-522b-b3c9-585e94391c85'
   parent: cosmosAccount
   properties: {
     roleDefinitionId: '${cosmosAccount.id}/sqlRoleDefinitions/${cosmosContributorRoleId}'
@@ -28,7 +32,7 @@ resource botCosmosRole 'Microsoft.DocumentDB/databaseAccounts/sqlRoleAssignments
 }
 
 resource apiCosmosRole 'Microsoft.DocumentDB/databaseAccounts/sqlRoleAssignments@2024-05-15' = {
-  name: guid(cosmosAccount.id, functionPrincipalId, cosmosReaderRoleId)
+  name: '2d3f9807-10d9-5fc3-a312-b051122688a3'
   parent: cosmosAccount
   properties: {
     roleDefinitionId: '${cosmosAccount.id}/sqlRoleDefinitions/${cosmosReaderRoleId}'
@@ -47,7 +51,7 @@ resource openAiAccount 'Microsoft.CognitiveServices/accounts@2023-05-01' existin
 }
 
 resource botOpenAiRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(openAiAccount.id, botPrincipalId, cognitiveServicesOpenAiUserRole)
+  name: 'eb0e3d15-c7a3-4266-8976-ddcfa5354d55'
   scope: openAiAccount
   properties: {
     roleDefinitionId: cognitiveServicesOpenAiUserRole
@@ -69,7 +73,7 @@ resource storageAccount 'Microsoft.Storage/storageAccounts@2023-05-01' existing 
 }
 
 resource botBlobContributor 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(storageAccount.id, botPrincipalId, storageBlobDataContributorRole)
+  name: '8e9a50eb-3e04-436b-94d5-d36688fdc608'
   scope: storageAccount
   properties: {
     roleDefinitionId: storageBlobDataContributorRole
@@ -79,7 +83,7 @@ resource botBlobContributor 'Microsoft.Authorization/roleAssignments@2022-04-01'
 }
 
 resource apiBlobReader 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(storageAccount.id, functionPrincipalId, storageBlobDataReaderRole)
+  name: '3640f75e-6999-4eeb-99f0-b50c7de04097'
   scope: storageAccount
   properties: {
     roleDefinitionId: storageBlobDataReaderRole
@@ -89,7 +93,7 @@ resource apiBlobReader 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
 }
 
 resource apiBlobDelegator 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(storageAccount.id, functionPrincipalId, storageBlobDelegatorRole)
+  name: '6db372dd-c26e-4ff3-a29d-474bf2e29001'
   scope: storageAccount
   properties: {
     roleDefinitionId: storageBlobDelegatorRole
@@ -97,3 +101,4 @@ resource apiBlobDelegator 'Microsoft.Authorization/roleAssignments@2022-04-01' =
     principalType: 'ServicePrincipal'
   }
 }
+
