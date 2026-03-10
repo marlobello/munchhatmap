@@ -12,7 +12,7 @@ function getClient(): AzureOpenAI | null {
   if (!_client) {
     if (apiKey) {
       // Local dev: use API key if provided
-      _client = new AzureOpenAI({ endpoint, apiKey, apiVersion: '2024-10-21', deployment });
+      _client = new AzureOpenAI({ endpoint, apiKey, apiVersion: '2025-03-01-preview', deployment });
     } else {
       // Production: use managed identity token provider
       const credential = new DefaultAzureCredential();
@@ -20,7 +20,7 @@ function getClient(): AzureOpenAI | null {
         credential,
         'https://cognitiveservices.azure.com/.default',
       );
-      _client = new AzureOpenAI({ endpoint, azureADTokenProvider, apiVersion: '2024-10-21', deployment });
+      _client = new AzureOpenAI({ endpoint, azureADTokenProvider, apiVersion: '2025-03-01-preview', deployment });
     }
   }
   return _client;
@@ -97,7 +97,7 @@ async function callAoai(messages: Parameters<AzureOpenAI['chat']['completions'][
   const client = getClient();
   if (!client) return null;
   try {
-    const response = await client.chat.completions.create({ model: deployment, temperature: 0, max_tokens: maxTokens, messages });
+    const response = await client.chat.completions.create({ model: deployment, temperature: 0, max_completion_tokens: maxTokens, messages });
     return response.choices[0]?.message?.content ?? null;
   } catch (err) {
     console.error('[aoai] API call failed:', err instanceof Error ? err.message : err);
