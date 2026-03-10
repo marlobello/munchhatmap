@@ -95,7 +95,7 @@ function parseReverseResponse(content: string | null): Pick<LocationInfo, 'count
 
 async function callAoai(
   messages: Parameters<AzureOpenAI['chat']['completions']['create']>[0]['messages'],
-  maxTokens = 120,
+  maxTokens = 500,
   onError?: (err: string) => void,
 ): Promise<string | null> {
   const client = getClient();
@@ -107,7 +107,14 @@ async function callAoai(
   }
   try {
     const response = await client.chat.completions.create({ model: deployment, max_completion_tokens: maxTokens, messages });
-    return response.choices[0]?.message?.content ?? null;
+    const choice = response.choices[0];
+    const content = choice?.message?.content ?? null;
+    if (!content) {
+      const msg = `Empty response — finish_reason=${choice?.finish_reason ?? 'none'}, usage=${JSON.stringify(response.usage)}`;
+      console.warn('[aoai]', msg);
+      onError?.(msg);
+    }
+    return content;
   } catch (err) {
     // Extract structured detail from OpenAI SDK errors where available
     const detail = (() => {
@@ -181,7 +188,7 @@ export async function reverseGeocodeWithAoai(lat: number, lng: number, onRaw?: (
   const content = await callAoai([
     { role: 'system', content: REVERSE_SYSTEM_PROMPT },
     { role: 'user',   content: `Coordinates: lat=${lat}, lng=${lng}` },
-  ], 60, (e) => { apiError = e; });
+  ], 200, (e) => { apiError = e; });
   onRaw?.(content, apiError);
   const meta = parseReverseResponse(content);
   if (!meta) return { lat, lng };
