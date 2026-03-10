@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.41.2.15936",
-      "templateHash": "13403975360922600590"
+      "templateHash": "8681130153858029672"
     }
   },
   "parameters": {
@@ -62,6 +62,13 @@
       "defaultValue": "734095597342294107",
       "metadata": {
         "description": "Discord guild ID for membership verification"
+      }
+    },
+    "discordModRoleId": {
+      "type": "string",
+      "defaultValue": "946552913600331856",
+      "metadata": {
+        "description": "Discord role ID that grants elevated (MOD) permissions on the map"
       }
     }
   },
@@ -603,6 +610,9 @@
           },
           "discordGuildId": {
             "value": "[parameters('discordGuildId')]"
+          },
+          "discordModRoleId": {
+            "value": "[parameters('discordModRoleId')]"
           },
           "discordRedirectUri": {
             "value": "[format('https://{0}-api-{1}.azurewebsites.net/api/auth/callback', variables('prefix'), parameters('env'))]"
