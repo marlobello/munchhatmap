@@ -7,7 +7,7 @@
  * This avoids third-party cookie blocking (API is on azurewebsites.net, frontend on custom domain).
  */
 
-import { renderPins } from './map.js';
+import { renderPins, setupMapHandlers } from './map.js';
 import { initStats } from './stats.js';
 
 const API_BASE = window.API_BASE ?? '/api';
@@ -118,9 +118,46 @@ checkAuth().then((user) => {
 
   authedFetch(`${API_BASE}/getPins`)
     .then((r) => { if (!r.ok) throw new Error(`${r.status}`); return r.json(); })
-    .then((pins) => {
-      renderPins(map, pins, user, authedFetch, API_BASE);
-      countEl.textContent = `${pins.length} pin${pins.length !== 1 ? 's' : ''}`;
+    .then((allPins) => {
+      setupMapHandlers(map);
+
+      // Build sorted unique user list from pin data
+      const userMap = new Map(); // userId → username
+      for (const pin of allPins) {
+        if (pin.userId && !userMap.has(pin.userId)) {
+          userMap.set(pin.userId, pin.username ?? pin.userId);
+        }
+      }
+      const otherUsers = [...userMap.entries()]
+        .filter(([id]) => id !== user.userId)
+        .sort(([, a], [, b]) => a.localeCompare(b));
+
+      // Build and inject the user filter control
+      const filterControl = document.createElement('div');
+      filterControl.id = 'user-filter';
+      filterControl.innerHTML = `
+        <select id="user-filter-select" title="Filter pins by user" aria-label="Filter pins by user">
+          <option value="">👥 All pins</option>
+          <option value="${user.userId}">⭐ My pins</option>
+          ${otherUsers.map(([id, name]) => `<option value="${id}">@${name}</option>`).join('')}
+        </select>
+      `;
+      document.body.appendChild(filterControl);
+
+      // Initial render
+      let currentCluster = renderPins(map, allPins, user, authedFetch, API_BASE);
+      countEl.textContent = `${allPins.length} pin${allPins.length !== 1 ? 's' : ''}`;
+
+      // Re-render on filter change
+      document.getElementById('user-filter-select').addEventListener('change', (e) => {
+        const selectedUserId = e.target.value;
+        const filtered = selectedUserId
+          ? allPins.filter((p) => p.userId === selectedUserId)
+          : allPins;
+        map.removeLayer(currentCluster);
+        currentCluster = renderPins(map, filtered, user, authedFetch, API_BASE);
+        countEl.textContent = `${filtered.length} pin${filtered.length !== 1 ? 's' : ''}`;
+      });
     })
     .catch((err) => {
       console.error('Failed to load pins:', err);

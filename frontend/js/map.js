@@ -362,22 +362,12 @@ function buildMarker(pin, user, authedFetch, apiBase, cluster) {
 // ─── Public API ──────────────────────────────────────────────────────────────
 
 /**
- * Renders all pins as Leaflet markers with popups and optional drag-to-relocate.
+ * Sets up one-time map event handlers (image error fallback in popups).
+ * Call this once after the map is created — NOT inside renderPins, which may
+ * be called multiple times when the user filter changes.
  * @param {L.Map} map
- * @param {Array} pins
- * @param {object|null} user  — current session user (from /api/auth/me)
- * @param {Function} authedFetch  — authenticated fetch helper from main.js
- * @param {string} apiBase  — API base URL
  */
-export function renderPins(map, pins, user = null, authedFetch = fetch, apiBase = '/api') {
-  const cluster = L.markerClusterGroup({ chunkedLoading: true });
-  for (const pin of pins) {
-    const marker = buildMarker(pin, user, authedFetch, apiBase, cluster);
-    cluster.addLayer(marker);
-  }
-  map.addLayer(cluster);
-
-  // CSP-safe image error handler: swap broken image for placeholder + Discord link.
+export function setupMapHandlers(map) {
   map.on('popupopen', (e) => {
     const el = e.popup.getElement();
     if (!el) return;
@@ -391,5 +381,28 @@ export function renderPins(map, pins, user = null, authedFetch = fetch, apiBase 
       if (discordLinkDiv) discordLinkDiv.style.display = 'none';
     }, { once: true });
   });
+}
+
+/**
+ * Renders a set of pins as Leaflet markers with popups and optional drag-to-relocate.
+ * Returns the cluster group so the caller can remove it when re-rendering.
+ *
+ * Call setupMapHandlers(map) once before the first renderPins call.
+ *
+ * @param {L.Map} map
+ * @param {Array} pins
+ * @param {object|null} user  — current session user (from /api/auth/me)
+ * @param {Function} authedFetch  — authenticated fetch helper from main.js
+ * @param {string} apiBase  — API base URL
+ * @returns {L.MarkerClusterGroup}
+ */
+export function renderPins(map, pins, user = null, authedFetch = fetch, apiBase = '/api') {
+  const cluster = L.markerClusterGroup({ chunkedLoading: true });
+  for (const pin of pins) {
+    const marker = buildMarker(pin, user, authedFetch, apiBase, cluster);
+    cluster.addLayer(marker);
+  }
+  map.addLayer(cluster);
+  return cluster;
 }
 
