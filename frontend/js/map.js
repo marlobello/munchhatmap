@@ -73,11 +73,13 @@ function buildPopupContent(pin, canDelete = false) {
     : '';
   const deleteBtn = canDelete
     ? `<button class="popup-delete-btn" data-pin-id="${escapeAttr(pin.id)}" data-guild-id="${escapeAttr(pin.guildId)}"
-         style="margin-top:8px;width:100%;background:#f38ba8;color:#1e1e2e;border:none;border-radius:8px;
-                padding:6px 12px;cursor:pointer;font-weight:600;font-size:12px;">🗑️ Delete pin</button>`
+         title="Delete pin"
+         style="position:absolute;top:6px;right:6px;background:none;border:none;cursor:pointer;
+                font-size:16px;line-height:1;padding:2px;opacity:0.45;transition:opacity 0.15s"
+         onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.45'">🗑️</button>`
     : '';
   return `
-    <div class="popup-content">
+    <div class="popup-content" style="position:relative">
       <img class="popup-photo" src="${escapeAttr(pin.imageUrl)}" alt="MunchHat photo" loading="lazy" />
       <div class="popup-img-error" style="display:none">
         <img src="/munchhat.png" alt="" class="popup-img-error-icon" />
