@@ -10,8 +10,8 @@
     "dev": "tsc --watch & func start"
   },
   "dependencies": {
-    "@azure/cosmos": "^4.1.0",
-    "@azure/functions": "^4.5.0",
+    "@azure/cosmos": "^4.9.1",
+    "@azure/functions": "^4.11.2",
     "@azure/identity": "^4.13.0",
     "@azure/storage-blob": "^12.31.0",
     "jose": "^6.2.1",
@@ -19,9 +19,9 @@
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
-    "typescript": "^5.7.0"
+    "typescript": "^5.9.3"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   }
 }

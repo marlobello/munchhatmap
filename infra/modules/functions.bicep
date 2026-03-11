@@ -83,7 +83,7 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
     // which doesn't exist here and causes KV references to silently return the literal string)
     keyVaultReferenceIdentity: functionIdentityId
     siteConfig: {
-      nodeVersion: '~20'
+      nodeVersion: '~22'
       appSettings: [
         {
           name: 'AzureWebJobsStorage'
@@ -107,7 +107,7 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
         }
         {
           name: 'WEBSITE_NODE_DEFAULT_VERSION'
-          value: '~20'
+          value: '~22'
         }
         // Cosmos DB — managed identity auth (no key needed)
         {
