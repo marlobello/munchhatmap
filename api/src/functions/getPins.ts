@@ -7,14 +7,10 @@ import { jsonResponse, corsHeaders } from '../shared/response.js';
 /**
  * GET /api/getPins
  *
- * Returns all MapPin records as JSON.
- * Currently public (no auth). Designed for Phase 2 session/auth check.
+ * Returns all MapPin records as JSON. Requires a valid JWT Bearer token.
  *
- * Accepted query params (all optional, future filtering):
+ * Accepted query params (all optional):
  *   ?guildId=...&channelId=...&userId=...
- *
- * TODO (Phase 2): validate session cookie / JWT before returning data.
- * TODO (Production): restrict CORS origin to the Static Web App domain.
  */
 async function getPinsHandler(
   request: HttpRequest,

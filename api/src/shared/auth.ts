@@ -85,12 +85,6 @@ export async function getGuildMemberInfo(discordAccessToken: string): Promise<{
   return { isMember: true, isElevated };
 }
 
-/** @deprecated Use getGuildMemberInfo() instead. */
-export async function isGuildMember(discordAccessToken: string): Promise<boolean> {
-  const { isMember } = await getGuildMemberInfo(discordAccessToken);
-  return isMember;
-}
-
 /** Fetches the Discord user profile for the given access token. */
 export async function getDiscordUser(discordAccessToken: string): Promise<{
   id: string;
@@ -129,8 +123,16 @@ export function unauthorizedResponse(message = 'Authentication required'): {
 interface ExchangeEntry { jwt: string; expiresAt: number; }
 const _exchangeCodes = new Map<string, ExchangeEntry>();
 
+function pruneExpiredCodes(): void {
+  const now = Date.now();
+  for (const [code, entry] of _exchangeCodes) {
+    if (now > entry.expiresAt) _exchangeCodes.delete(code);
+  }
+}
+
 /** Creates a one-time code that can be exchanged for the given JWT within 60 seconds. */
 export function createExchangeCode(jwt: string): string {
+  pruneExpiredCodes();
   const code = randomUUID();
   _exchangeCodes.set(code, { jwt, expiresAt: Date.now() + 60_000 });
   return code;
