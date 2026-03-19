@@ -28,7 +28,7 @@ resource cosmosAccount 'Microsoft.DocumentDB/databaseAccounts@2024-05-15' = {
       type: 'Periodic'
       periodicModeProperties: {
         backupIntervalInMinutes: 1440
-        backupRetentionIntervalInHours: 48
+        backupRetentionIntervalInHours: 168 // 7 days
         backupStorageRedundancy: 'Local'
       }
     }

@@ -1,0 +1,108 @@
+name: Backup / Restore
+
+on:
+  schedule:
+    - cron: '0 3 * * 0'  # Sundays at 03:00 UTC
+  workflow_dispatch:
+    inputs:
+      restore_file:
+        description: 'Backup blob name to restore (e.g. pins-backup-2026-03-16.json). Leave blank to run an export instead.'
+        required: false
+        default: ''
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  RESOURCE_GROUP: rg-munchhatmap-prod
+  COSMOS_ACCOUNT: munchhatmap-cosmos-prod
+  STORAGE_ACCOUNT: munchhatmapapiprodsa
+  BACKUP_CONTAINER: cosmos-backups
+
+jobs:
+  backup-restore:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: bot/package-lock.json
+
+      - name: Install bot dependencies
+        working-directory: bot
+        run: npm ci
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Get Cosmos DB key
+        id: cosmos
+        run: |
+          KEY=$(az cosmosdb keys list \
+            --name ${{ env.COSMOS_ACCOUNT }} \
+            --resource-group ${{ env.RESOURCE_GROUP }} \
+            --query primaryMasterKey -o tsv)
+          ENDPOINT=$(az cosmosdb show \
+            --name ${{ env.COSMOS_ACCOUNT }} \
+            --resource-group ${{ env.RESOURCE_GROUP }} \
+            --query documentEndpoint -o tsv)
+          echo "::add-mask::$KEY"
+          echo "key=$KEY" >> $GITHUB_OUTPUT
+          echo "endpoint=$ENDPOINT" >> $GITHUB_OUTPUT
+
+      - name: Get storage account key
+        id: storage
+        run: |
+          KEY=$(az storage account keys list \
+            --account-name ${{ env.STORAGE_ACCOUNT }} \
+            --resource-group ${{ env.RESOURCE_GROUP }} \
+            --query "[0].value" -o tsv)
+          echo "::add-mask::$KEY"
+          echo "key=$KEY" >> $GITHUB_OUTPUT
+
+      # ── Export (scheduled weekly run OR manual dispatch with no restore_file) ──
+
+      - name: Export pins to blob storage
+        if: ${{ github.event_name == 'schedule' || github.event.inputs.restore_file == '' }}
+        working-directory: bot
+        env:
+          COSMOS_DB_ENDPOINT: ${{ steps.cosmos.outputs.endpoint }}
+          COSMOS_DB_KEY: ${{ steps.cosmos.outputs.key }}
+          AZURE_STORAGE_ACCOUNT_NAME: ${{ env.STORAGE_ACCOUNT }}
+          AZURE_STORAGE_KEY: ${{ steps.storage.outputs.key }}
+          BACKUP_CONTAINER: ${{ env.BACKUP_CONTAINER }}
+        run: npx tsx scripts/exportPins.ts
+
+      # ── Restore (manual dispatch with restore_file provided) ──────────────────
+
+      - name: List available backups
+        if: ${{ github.event.inputs.restore_file != '' }}
+        run: |
+          echo "Available backups in ${BACKUP_CONTAINER}:"
+          az storage blob list \
+            --account-name ${{ env.STORAGE_ACCOUNT }} \
+            --account-key ${{ steps.storage.outputs.key }} \
+            --container-name ${{ env.BACKUP_CONTAINER }} \
+            --query "[].{name:name, size:properties.contentLength, modified:properties.lastModified}" \
+            -o table
+
+      - name: Import pins from backup
+        if: ${{ github.event.inputs.restore_file != '' }}
+        working-directory: bot
+        env:
+          COSMOS_DB_ENDPOINT: ${{ steps.cosmos.outputs.endpoint }}
+          COSMOS_DB_KEY: ${{ steps.cosmos.outputs.key }}
+          AZURE_STORAGE_ACCOUNT_NAME: ${{ env.STORAGE_ACCOUNT }}
+          AZURE_STORAGE_KEY: ${{ steps.storage.outputs.key }}
+          BACKUP_CONTAINER: ${{ env.BACKUP_CONTAINER }}
+          BACKUP_BLOB: ${{ github.event.inputs.restore_file }}
+        run: npx tsx scripts/importPins.ts
