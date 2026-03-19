@@ -264,7 +264,7 @@ function showDeleteDialog(author) {
  */
 function buildMarker(pin, user, authedFetch, apiBase, cluster) {
   const canDrag   = !!(user && (user.userId === pin.userId || user.isElevated));
-  const canDelete = !!(user && user.isElevated);
+  const canDelete = !!(user && (user.userId === pin.userId || user.isElevated));
   const marker = L.marker([pin.lat, pin.lng], { icon: hatIcon, draggable: canDrag });
   marker.bindPopup(buildPopupContent(pin, canDelete), { maxWidth: 280 });
 
