@@ -1,8 +1,12 @@
 // Azure Maps account (Gen2) — used for reverse geocoding and fuzzy place search.
 // Replaces AOAI for deterministic coordinate lookups; no idle cost (pay-per-call).
+//
+// Note: Azure Maps is not available in all regions. Supported regions include:
+// eastus, westus2, westeurope, northeurope, westcentralus.
+// Deploy to eastus to co-locate with Azure OpenAI.
 
 param name string
-param location string
+param location string = 'eastus'
 param tags object = {}
 
 resource mapsAccount 'Microsoft.Maps/accounts@2023-06-01' = {

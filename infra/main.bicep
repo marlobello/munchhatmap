@@ -130,12 +130,13 @@ module openAi 'modules/openai.bicep' = {
 // ─── Step 5.6: Azure Maps ────────────────────────────────────────────────────
 // Gen2, pay-per-call geocoding. Used for reverse geocoding (EXIF GPS path) and
 // hybrid forward geocoding (text path). No idle cost.
+// Deployed to eastus — Maps is not available in centralus.
 
 module maps 'modules/maps.bicep' = {
   name: 'maps'
   params: {
     name: '${prefix}-maps-${env}'
-    location: location
+    location: openAiLocation  // eastus — Maps not available in centralus
     tags: tags
   }
 }
