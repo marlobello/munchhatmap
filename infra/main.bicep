@@ -106,6 +106,7 @@ module functions 'modules/functions.bicep' = {
     functionClientId: identities.outputs.functionClientId
     cosmosEndpoint: cosmosDb.outputs.cosmosEndpoint
     openAiEndpoint: openAi.outputs.endpoint
+    mapsClientId: maps.outputs.mapsClientId
     allowedOrigin: 'https://${staticWebAppCustomDomain}'
     discordClientId: discordClientId
     discordGuildId: discordGuildId
@@ -126,6 +127,19 @@ module openAi 'modules/openai.bicep' = {
   }
 }
 
+// ─── Step 5.6: Azure Maps ────────────────────────────────────────────────────
+// Gen2, pay-per-call geocoding. Used for reverse geocoding (EXIF GPS path) and
+// hybrid forward geocoding (text path). No idle cost.
+
+module maps 'modules/maps.bicep' = {
+  name: 'maps'
+  params: {
+    name: '${prefix}-maps-${env}'
+    location: location
+    tags: tags
+  }
+}
+
 // ─── Step 6: Container App (Discord Bot) ────────────────────────────────────
 
 module containerApp 'modules/containerapp.bicep' = {
@@ -142,6 +156,7 @@ module containerApp 'modules/containerapp.bicep' = {
     botClientId: identities.outputs.botClientId
     cosmosEndpoint: cosmosDb.outputs.cosmosEndpoint
     openAiEndpoint: openAi.outputs.endpoint
+    mapsClientId: maps.outputs.mapsClientId
   }
 }
 
@@ -154,6 +169,7 @@ module roleAssignments 'modules/roleassignments.bicep' = {
   params: {
     cosmosAccountName:  cosmosDb.outputs.cosmosAccountName
     openAiAccountName:  openAi.outputs.accountName
+    mapsAccountName:    maps.outputs.mapsAccountName
     storageAccountName: functions.outputs.storageAccountName
     keyVaultName:       keyVault.outputs.keyVaultName
     botPrincipalId:      identities.outputs.botIdentityPrincipalId
@@ -181,6 +197,7 @@ output functionAppHostname string = functions.outputs.functionAppHostname
 output keyVaultName string = keyVault.outputs.keyVaultName
 output cosmosEndpoint string = cosmosDb.outputs.cosmosEndpoint
 output openAiEndpoint string = openAi.outputs.endpoint
+output mapsClientId string = maps.outputs.mapsClientId
 
 @description('Add this token to GitHub Actions secret: AZURE_STATIC_WEB_APPS_API_TOKEN')
 output staticWebAppDeploymentToken string = staticWebApp.outputs.deploymentToken

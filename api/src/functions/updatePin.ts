@@ -1,7 +1,8 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
 import { getSessionUser, unauthorizedResponse } from '../shared/auth.js';
 import { getPinById, upsertPin } from '../shared/db.js';
-import { reverseGeocode } from '../shared/aoai.js';
+import { reverseGeocode as reverseGeocodeWithMaps } from '../shared/maps.js';
+import { reverseGeocode as reverseGeocodeWithAoai } from '../shared/aoai.js';
 import { jsonResponse, corsHeaders } from '../shared/response.js';
 
 /**
@@ -52,7 +53,8 @@ async function updatePinHandler(
   await upsertPin(updatedPin);
 
   // Re-geocode the new coordinates to refresh country/state/place_name.
-  const geo = await reverseGeocode(lat, lng);
+  // Prefer Azure Maps (authoritative, deterministic); fall back to AOAI if Maps is unavailable.
+  const geo = (await reverseGeocodeWithMaps(lat, lng)) ?? (await reverseGeocodeWithAoai(lat, lng));
   if (geo) {
     updatedPin.country    = geo.country    ?? updatedPin.country;
     updatedPin.state      = geo.state      ?? updatedPin.state;

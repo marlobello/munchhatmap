@@ -12,6 +12,9 @@ param cosmosEndpoint string
 param openAiEndpoint string = ''
 param openAiDeployment string = 'gpt-4.1'
 
+// Azure Maps client ID (Maps account uniqueId) — required for managed identity auth
+param mapsClientId string = ''
+
 // Discord OAuth2 plain env vars
 param discordClientId string
 param discordGuildId string
@@ -157,6 +160,11 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
         {
           name: 'AZURE_OPENAI_DEPLOYMENT'
           value: openAiDeployment
+        }
+        // Azure Maps — managed identity auth; only client ID needed (no key)
+        {
+          name: 'AZURE_MAPS_CLIENT_ID'
+          value: mapsClientId
         }
         // Discord OAuth2 client secret and JWT session secret — from Key Vault
         {

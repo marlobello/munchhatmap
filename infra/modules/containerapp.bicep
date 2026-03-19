@@ -22,6 +22,9 @@ param botIdentityId string
 param cosmosEndpoint string
 param openAiEndpoint string
 
+// Azure Maps client ID (Maps account uniqueId) — required for managed identity auth
+param mapsClientId string = ''
+
 // Storage account name for blob image uploads (managed identity auth — no key needed)
 param storageAccountName string
 param imageStorageContainer string = 'pin-images'
@@ -103,6 +106,11 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
             {
               name: 'AZURE_OPENAI_DEPLOYMENT'
               value: 'gpt-4.1'
+            }
+            // Azure Maps — managed identity auth; only client ID needed (no key)
+            {
+              name: 'AZURE_MAPS_CLIENT_ID'
+              value: mapsClientId
             }
             // Blob storage — managed identity auth; only account name needed (no key)
             {

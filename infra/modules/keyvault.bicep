@@ -79,5 +79,11 @@ resource secretAoaiKey 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = if (seed
   properties: { value: 'PLACEHOLDER' }
 }
 
+resource secretMapsKey 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = if (seedSecrets) {
+  parent: keyVault
+  name: 'azure-maps-key'
+  properties: { value: 'PLACEHOLDER' }
+}
+
 output keyVaultName string = keyVault.name
 output keyVaultUri string = keyVault.properties.vaultUri

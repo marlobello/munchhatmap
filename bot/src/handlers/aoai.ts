@@ -49,11 +49,25 @@ Geographic regions, island names, countries, and named bodies of water such as t
 
 Return null only when the message contains absolutely no geographic information. Return ONLY the JSON object or null — no explanation, no markdown, no code fences.`;
 
-// Prompt for reverse geocoding coordinates → country/state only (used for EXIF GPS path).
+// Prompt for reverse geocoding coordinates → country/state only (used for EXIF GPS path AOAI fallback).
 const REVERSE_SYSTEM_PROMPT = `Given GPS coordinates, return the country and US state (if applicable).
 Return ONLY valid JSON: {"country": "<full country name in English>", "state": "<US state full name, or null>"}
 - "state" must only be populated for locations inside the United States; set to null for all other countries.
 - Return ONLY the JSON — no explanation, no markdown, no code fences.`;
+
+// Prompt for extracting a clean geocoding query from conversational Discord message text.
+// Used in the hybrid Step 2 path: AOAI extracts the location name, then Azure Maps resolves coordinates.
+// Returns a plain string (not JSON) — intentionally short response to minimise token cost.
+const EXTRACT_LOCATION_PROMPT = `You are an expert at identifying geographic location references in conversational text.
+
+Given a Discord message, extract the single most specific real-world location being described and return it as a clean search query string suitable for a geocoding API.
+
+Rules:
+- Prefer the most specific place: a restaurant or venue name beats a neighbourhood, which beats a city
+- Include a city/region qualifier when it helps disambiguate (e.g. "Torchy's Tacos Austin TX")
+- Directional phrases like "20 miles from X" or "near X" describe where to search — reason about them to produce the nearest identifiable location
+- Return ONLY the plain search query string — no JSON, no explanation, no markdown
+- Return null (the literal word) if the message contains absolutely no geographic information`;
 
 function parseGeocodeResponse(content: string | null): LocationInfo | null {
   if (!content) return null;
@@ -179,7 +193,7 @@ export async function geocodeWithImage(imageUrl: string, onRaw?: (raw: string | 
 
 /**
  * Reverse geocodes GPS coordinates to country + US state using AOAI.
- * Used for the EXIF GPS path where we already have coordinates.
+ * Used as a fallback for the EXIF GPS path when Azure Maps is not configured.
  * onRaw is called with (rawResponse, errorDetail?) — errorDetail is set on API failure.
  */
 export async function reverseGeocodeWithAoai(lat: number, lng: number, onRaw?: (raw: string | null, err?: string) => void): Promise<LocationInfo | null> {
@@ -194,4 +208,22 @@ export async function reverseGeocodeWithAoai(lat: number, lng: number, onRaw?: (
   if (!meta) return { lat, lng };
   console.log(`[aoai] reverse ${lat},${lng} → ${content?.slice(0, 80)}`);
   return { lat, lng, ...meta };
+}
+
+/**
+ * Extracts a clean geocoding query string from a Discord message using AOAI.
+ * Used in the hybrid Step 2 path — returns a place name/address suitable for Azure Maps fuzzy search.
+ * Returns null when AOAI is not configured, the message has no location info, or the call fails.
+ */
+export async function extractLocationQuery(messageText: string): Promise<string | null> {
+  if (!getClient()) return null;
+  if (!messageText.trim()) return null;
+  const content = await callAoai([
+    { role: 'system', content: EXTRACT_LOCATION_PROMPT },
+    { role: 'user',   content: `Discord message: "${messageText}"` },
+  ], 64); // short — just a place name string, not a JSON object
+  if (!content || content.trim() === 'null') return null;
+  const query = content.trim();
+  console.log(`[aoai] extract query "${messageText.slice(0, 60)}" → "${query}"`);
+  return query;
 }

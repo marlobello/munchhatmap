@@ -8,6 +8,7 @@
 
 param cosmosAccountName string
 param openAiAccountName string
+param mapsAccountName string
 param storageAccountName string
 param keyVaultName string
 
@@ -65,6 +66,35 @@ resource apiOpenAiRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
   scope: openAiAccount
   properties: {
     roleDefinitionId: cognitiveServicesOpenAiUserRole
+    principalId: functionPrincipalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+// ── Azure Maps ───────────────────────────────────────────────────────────────
+// "Azure Maps Data Reader" — allows calling search, geocoding, and routing APIs
+
+var azureMapsDataReaderRole = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '423170ca-a8f6-4b0f-8487-9e4eb8f49bfa')
+
+resource mapsAccount 'Microsoft.Maps/accounts@2023-06-01' existing = {
+  name: mapsAccountName
+}
+
+resource botMapsRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(mapsAccount.id, botPrincipalId, azureMapsDataReaderRole)
+  scope: mapsAccount
+  properties: {
+    roleDefinitionId: azureMapsDataReaderRole
+    principalId: botPrincipalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+resource apiMapsRole 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(mapsAccount.id, functionPrincipalId, azureMapsDataReaderRole)
+  scope: mapsAccount
+  properties: {
+    roleDefinitionId: azureMapsDataReaderRole
     principalId: functionPrincipalId
     principalType: 'ServicePrincipal'
   }
