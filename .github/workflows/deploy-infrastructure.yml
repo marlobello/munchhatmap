@@ -11,7 +11,6 @@ on:
 permissions:
   id-token: write
   contents: read
-  actions: write
 
 jobs:
   deploy:
@@ -28,19 +27,25 @@ jobs:
 
       - name: Create resource group (if not exists)
         run: |
+          ENV="${{ github.event.inputs.environment }}"
+          if [[ ! "$ENV" =~ ^(prod|staging|dev)$ ]]; then
+            echo "ERROR: Invalid environment '$ENV'. Must be prod, staging, or dev."
+            exit 1
+          fi
           az group create \
-            --name rg-munchhatmap-prod \
+            --name "rg-munchhatmap-${ENV}" \
             --location centralus \
-            --tags project=munchhatmap environment=${{ github.event.inputs.environment }} \
+            --tags "project=munchhatmap" "environment=${ENV}" \
             --output none
 
       - name: Deploy Bicep
         run: |
+          ENV="${{ github.event.inputs.environment }}"
           az deployment group create \
-            --resource-group rg-munchhatmap-prod \
+            --resource-group "rg-munchhatmap-${ENV}" \
             --template-file infra/main.bicep \
             --parameters \
-                env=${{ github.event.inputs.environment }} \
+                env="${ENV}" \
                 repositoryUrl=https://github.com/${{ github.repository }} \
                 repositoryBranch=${{ github.ref_name }} \
             --output table
@@ -48,6 +53,9 @@ jobs:
   redeploy-services:
     needs: deploy
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: write
     steps:
       - uses: actions/checkout@v4
 

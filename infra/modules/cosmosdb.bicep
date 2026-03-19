@@ -71,4 +71,4 @@ resource pinsContainer 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/conta
 
 output cosmosAccountName string = cosmosAccount.name
 output cosmosEndpoint string = cosmosAccount.properties.documentEndpoint
-output cosmosPrimaryKey string = cosmosAccount.listKeys().primaryMasterKey
+// cosmosPrimaryKey intentionally not exposed — all apps authenticate via managed identity.

@@ -39,8 +39,8 @@ async function updatePinHandler(
 
   if (typeof pinId !== 'string' || !pinId) return jsonResponse(400, { error: 'pinId is required' });
   if (typeof guildId !== 'string' || !guildId) return jsonResponse(400, { error: 'guildId is required' });
-  if (typeof lat !== 'number' || lat < -90 || lat > 90) return jsonResponse(400, { error: 'lat must be a number between -90 and 90' });
-  if (typeof lng !== 'number' || lng < -180 || lng > 180) return jsonResponse(400, { error: 'lng must be a number between -180 and 180' });
+  if (typeof lat !== 'number' || !Number.isFinite(lat) || lat < -90 || lat > 90) return jsonResponse(400, { error: 'lat must be a finite number between -90 and 90' });
+  if (typeof lng !== 'number' || !Number.isFinite(lng) || lng < -180 || lng > 180) return jsonResponse(400, { error: 'lng must be a finite number between -180 and 180' });
 
   const pin = await getPinById(pinId, guildId);
   if (!pin) return jsonResponse(404, { error: 'Pin not found' });

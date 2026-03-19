@@ -14,6 +14,7 @@
 
 import { DefaultAzureCredential } from '@azure/identity';
 import type { LocationInfo } from './aoai.js';
+import { fetchWithTimeout } from './http.js';
 
 const MAPS_BASE      = 'https://atlas.microsoft.com';
 const subscriptionKey = process.env.AZURE_MAPS_KEY       ?? '';
@@ -52,7 +53,7 @@ export async function reverseGeocodeWithMaps(lat: number, lng: number): Promise<
     const headers = await getAuthHeaders();
     // Azure Maps uses GeoJSON coordinate order: [longitude, latitude]
     const url = `${MAPS_BASE}/reverseGeocode?api-version=2023-06-01&coordinates=${lng},${lat}`;
-    const res = await fetch(url, { headers });
+    const res = await fetchWithTimeout(url, { headers });
     if (!res.ok) {
       console.error(`[maps] reverse geocode HTTP ${res.status} ${res.statusText}`);
       return null;
@@ -84,7 +85,7 @@ export async function forwardGeocodeWithMaps(query: string): Promise<LocationInf
   try {
     const headers = await getAuthHeaders();
     const url = `${MAPS_BASE}/search/fuzzy/json?api-version=1.0&query=${encodeURIComponent(query)}&limit=1`;
-    const res = await fetch(url, { headers });
+    const res = await fetchWithTimeout(url, { headers });
     if (!res.ok) {
       console.error(`[maps] fuzzy search HTTP ${res.status} ${res.statusText}`);
       return null;

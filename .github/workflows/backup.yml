@@ -86,12 +86,14 @@ jobs:
 
       - name: List available backups
         if: ${{ github.event.inputs.restore_file != '' }}
+        env:
+          AZURE_STORAGE_ACCOUNT_KEY: ${{ steps.storage.outputs.key }}
         run: |
           echo "Available backups in ${BACKUP_CONTAINER}:"
           az storage blob list \
-            --account-name ${{ env.STORAGE_ACCOUNT }} \
-            --account-key ${{ steps.storage.outputs.key }} \
-            --container-name ${{ env.BACKUP_CONTAINER }} \
+            --account-name "${{ env.STORAGE_ACCOUNT }}" \
+            --account-key "$AZURE_STORAGE_ACCOUNT_KEY" \
+            --container-name "${{ env.BACKUP_CONTAINER }}" \
             --query "[].{name:name, size:properties.contentLength, modified:properties.lastModified}" \
             -o table
 
@@ -105,4 +107,9 @@ jobs:
           AZURE_STORAGE_KEY: ${{ steps.storage.outputs.key }}
           BACKUP_CONTAINER: ${{ env.BACKUP_CONTAINER }}
           BACKUP_BLOB: ${{ github.event.inputs.restore_file }}
-        run: npx tsx scripts/importPins.ts
+        run: |
+          if [[ ! "$BACKUP_BLOB" =~ ^pins-backup-[0-9]{4}-[0-9]{2}-[0-9]{2}\.json$ ]]; then
+            echo "ERROR: Invalid backup filename. Expected format: pins-backup-YYYY-MM-DD.json"
+            exit 1
+          fi
+          npx tsx scripts/importPins.ts

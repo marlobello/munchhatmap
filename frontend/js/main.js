@@ -89,7 +89,7 @@ function showUser(user) {
   authGate.classList.add('hidden');
   userInfo.classList.add('visible');
   userName.textContent = user.username;
-  if (user.avatar) {
+  if (user.avatar && /^[a-f0-9_]+$/i.test(user.avatar)) {
     userAvatar.src = `https://cdn.discordapp.com/avatars/${user.userId}/${user.avatar}.png?size=48`;
     userAvatar.alt = user.username;
   } else {
@@ -132,16 +132,33 @@ checkAuth().then((user) => {
         .filter(([id]) => id !== user.userId)
         .sort(([, a], [, b]) => a.localeCompare(b));
 
-      // Build and inject the user filter control
+      // Build and inject the user filter control using DOM methods to prevent XSS
       const filterControl = document.createElement('div');
       filterControl.id = 'user-filter';
-      filterControl.innerHTML = `
-        <select id="user-filter-select" title="Filter pins by user" aria-label="Filter pins by user">
-          <option value="">👥 All pins</option>
-          <option value="${user.userId}">⭐ My pins</option>
-          ${otherUsers.map(([id, name]) => `<option value="${id}">@${name}</option>`).join('')}
-        </select>
-      `;
+
+      const select = document.createElement('select');
+      select.id = 'user-filter-select';
+      select.title = 'Filter pins by user';
+      select.setAttribute('aria-label', 'Filter pins by user');
+
+      const allOpt = document.createElement('option');
+      allOpt.value = '';
+      allOpt.textContent = '👥 All pins';
+      select.appendChild(allOpt);
+
+      const myOpt = document.createElement('option');
+      myOpt.value = user.userId;
+      myOpt.textContent = '⭐ My pins';
+      select.appendChild(myOpt);
+
+      for (const [id, name] of otherUsers) {
+        const opt = document.createElement('option');
+        opt.value = id;
+        opt.textContent = `@${name}`;
+        select.appendChild(opt);
+      }
+
+      filterControl.appendChild(select);
       document.body.appendChild(filterControl);
 
       // Initial render

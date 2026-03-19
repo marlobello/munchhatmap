@@ -19,7 +19,7 @@ import { DefaultAzureCredential } from '@azure/identity';
 
 const ACCOUNT_NAME = process.env.AZURE_STORAGE_ACCOUNT_NAME ?? '';
 const CONTAINER_NAME = process.env.IMAGE_STORAGE_CONTAINER ?? 'pin-images';
-const SAS_TTL_HOURS = 7 * 24; // 7 days — refreshed every time getPins is called
+const SAS_TTL_HOURS = 4; // 4 hours — tokens are refreshed on every getPins call, so 7 days is unnecessary exposure
 
 let _blobClient: BlobServiceClient | null = null;
 

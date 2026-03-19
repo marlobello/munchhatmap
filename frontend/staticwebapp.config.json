@@ -13,6 +13,6 @@
     "X-Content-Type-Options": "nosniff",
     "X-Frame-Options": "SAMEORIGIN",
     "Referrer-Policy": "strict-origin-when-cross-origin",
-    "Content-Security-Policy": "default-src 'self'; script-src 'self' https://unpkg.com; style-src 'self' 'unsafe-inline' https://unpkg.com; img-src 'self' https://unpkg.com https://cdn.discordapp.com https://media.discordapp.net https://tile.openstreetmap.org https://munchhatmapapiprodsa.blob.core.windows.net data:; connect-src 'self' https://tile.openstreetmap.org https://munchhatmap-api-prod.azurewebsites.net"
+    "Content-Security-Policy": "default-src 'self'; script-src 'self' https://unpkg.com; style-src 'self' 'unsafe-inline' https://unpkg.com; img-src 'self' https://unpkg.com https://cdn.discordapp.com https://media.discordapp.net https://tile.openstreetmap.org https://munchhatmapapiprodsa.blob.core.windows.net data:; connect-src 'self' https://tile.openstreetmap.org https://munchhatmap-api-prod.azurewebsites.net; frame-ancestors 'none'; object-src 'none'; base-uri 'self'"
   }
 }

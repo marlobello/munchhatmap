@@ -1,4 +1,5 @@
 import exifr from 'exifr';
+import { fetchWithTimeout } from './http.js';
 
 export interface GpsCoordinates {
   lat: number;
@@ -24,7 +25,7 @@ export async function extractGps(imageUrl: string): Promise<GpsResult> {
     return { coords: null, reason };
   }
   try {
-    const response = await fetch(imageUrl);
+    const response = await fetchWithTimeout(imageUrl);
     if (!response.ok) {
       const reason = `Image download failed: HTTP ${response.status} ${response.statusText}`;
       console.error('[exif]', reason);

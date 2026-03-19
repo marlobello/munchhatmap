@@ -39,6 +39,7 @@ export function checkPermissions(interaction: ChatInputCommandInteraction): { el
 /**
  * Enforces per-user per-channel rate limiting. Elevated users are exempt.
  * Returns the remaining cooldown in ms, or 0 if clear to proceed.
+ * Evicts expired entries when the map grows large to prevent unbounded memory growth.
  */
 export function checkCooldown(userId: string, channelId: string, elevated: boolean): number {
   if (elevated) return 0;
@@ -47,6 +48,15 @@ export function checkCooldown(userId: string, channelId: string, elevated: boole
   const remaining = IMPORT_COOLDOWN_MS - (Date.now() - lastRun);
   if (remaining > 0) return remaining;
   lastImportTime.set(key, Date.now());
+
+  // Evict expired entries when map exceeds threshold to prevent unbounded growth.
+  if (lastImportTime.size > 5000) {
+    const cutoff = Date.now() - IMPORT_COOLDOWN_MS;
+    for (const [k, ts] of lastImportTime) {
+      if (ts < cutoff) lastImportTime.delete(k);
+    }
+  }
+
   return 0;
 }
 

@@ -17,6 +17,7 @@ export interface SessionUser {
 function getSessionSecret(): Uint8Array {
   const secret = process.env.SESSION_SECRET;
   if (!secret) throw new Error('SESSION_SECRET environment variable is required');
+  if (secret.length < 32) throw new Error('SESSION_SECRET must be at least 32 characters');
   return new TextEncoder().encode(secret);
 }
 
@@ -43,8 +44,14 @@ export async function verifyToken(token: string): Promise<(JWTPayload & SessionU
 }
 
 export function parseCookie(cookieHeader: string, name: string): string | null {
-  const match = cookieHeader.match(new RegExp(`(?:^|;\\s*)${name}=([^;]*)`));
-  return match ? decodeURIComponent(match[1]) : null;
+  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const match = cookieHeader.match(new RegExp(`(?:^|;\\s*)${escaped}=([^;]*)`));
+  if (!match) return null;
+  try {
+    return decodeURIComponent(match[1]);
+  } catch {
+    return null;
+  }
 }
 
 /** Extracts the validated session user from the Authorization Bearer header, or returns null. */

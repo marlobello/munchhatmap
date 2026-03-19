@@ -9,6 +9,7 @@
 import { BlobServiceClient } from '@azure/storage-blob';
 import { DefaultAzureCredential } from '@azure/identity';
 import { extname } from 'path';
+import { fetchWithTimeout } from './http.js';
 
 const ACCOUNT_NAME = process.env.AZURE_STORAGE_ACCOUNT_NAME;
 const CONTAINER_NAME = process.env.IMAGE_STORAGE_CONTAINER ?? 'pin-images';
@@ -69,8 +70,11 @@ export async function uploadImageToBlob(
   const ext = extensionFromUrl(discordUrl);
   const blobName = `${messageId}${ext}`;
 
+  const ALLOWED_TYPES = /^image\/(jpeg|png|gif|webp|bmp)$/i;
+  const safeContentType = ALLOWED_TYPES.test(contentType) ? contentType : 'image/jpeg';
+
   try {
-    const response = await fetch(discordUrl);
+    const response = await fetchWithTimeout(discordUrl);
     if (!response.ok) {
       const error = `Image download failed: HTTP ${response.status} ${response.statusText}`;
       console.warn(`[storage] ${error}: ${discordUrl}`);
@@ -82,7 +86,7 @@ export async function uploadImageToBlob(
     const blockBlob = containerClient.getBlockBlobClient(blobName);
 
     await blockBlob.uploadData(buffer, {
-      blobHTTPHeaders: { blobContentType: contentType || 'image/jpeg' },
+      blobHTTPHeaders: { blobContentType: safeContentType },
     });
 
     return { url: blockBlob.url }; // permanent base URL — no SAS params

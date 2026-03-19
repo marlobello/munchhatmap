@@ -18,9 +18,9 @@ resource mapsAccount 'Microsoft.Maps/accounts@2023-06-01' = {
   }
   kind: 'Gen2'
   properties: {
-    // Keep local auth (subscription key) available for local development.
-    // Managed identity (DefaultAzureCredential) is used in production.
-    disableLocalAuth: false
+    // Subscription key auth disabled — managed identity (DefaultAzureCredential) is required.
+    // For local development, set AZURE_MAPS_KEY from a separate dev Azure Maps account.
+    disableLocalAuth: true
   }
 }
 
