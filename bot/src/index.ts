@@ -17,6 +17,13 @@ if (!token) {
 const importCommand = new SlashCommandBuilder()
   .setName('munchhat-import')
   .setDescription('Import a #munchhat pin by Discord message link')
+  // Required options must come before non-required options (Discord API rule).
+  .addStringOption((opt) =>
+    opt
+      .setName('message')
+      .setDescription('Import a single message by its Discord link (e.g. https://discord.com/channels/…)')
+      .setRequired(true),
+  )
   // DISABLED: lookback and channel options removed — bulk scanning is disabled.
   // Re-enable by uncommenting these and restoring the batch scan path in importHandler/index.ts.
   // .addStringOption((opt) =>
@@ -35,12 +42,6 @@ const importCommand = new SlashCommandBuilder()
         { name: 'verbose', value: 'verbose' },
         { name: 'debug', value: 'debug' },
       ),
-  )
-  .addStringOption((opt) =>
-    opt
-      .setName('message')
-      .setDescription('Import a single message by its Discord link (e.g. https://discord.com/channels/…)')
-      .setRequired(true),
   )
   // DISABLED: channel option removed — bulk channel scanning is disabled.
   // .addChannelOption((opt) =>
