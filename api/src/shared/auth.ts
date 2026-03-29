@@ -1,6 +1,5 @@
 import { SignJWT, jwtVerify, type JWTPayload } from 'jose';
 import { HttpRequest } from '@azure/functions';
-import { randomUUID } from 'crypto';
 import { getAllowedOrigin } from './response.js';
 
 const TOKEN_COOKIE = 'munchhat_session';
@@ -126,29 +125,43 @@ export function unauthorizedResponse(message = 'Authentication required'): {
 // ─── One-time exchange codes ────────────────────────────────────────────────
 // Short-lived codes used to hand off the JWT after OAuth callback without
 // exposing the full token in the URL fragment or browser history.
+//
+// Implemented as self-contained short-lived signed JWTs (60s) so no server-side
+// state is required. This works correctly across Azure Function instances and
+// cold starts — a plain in-memory Map would be lost on any new instance.
 
-interface ExchangeEntry { jwt: string; expiresAt: number; }
-const _exchangeCodes = new Map<string, ExchangeEntry>();
+const EXCHANGE_TYPE = 'exchange';
 
-function pruneExpiredCodes(): void {
-  const now = Date.now();
-  for (const [code, entry] of _exchangeCodes) {
-    if (now > entry.expiresAt) _exchangeCodes.delete(code);
+/**
+ * Creates a one-time exchange code — a signed JWT valid for 60 seconds.
+ * The code contains the full session payload and is verified on redeem.
+ * No server-side state is required, so it works across function instances.
+ */
+export async function createExchangeCode(user: SessionUser): Promise<string> {
+  return new SignJWT({ ...user, type: EXCHANGE_TYPE })
+    .setProtectedHeader({ alg: 'HS256' })
+    .setIssuedAt()
+    .setIssuer(JWT_ISSUER)
+    .setAudience(JWT_AUDIENCE)
+    .setExpirationTime('60s')
+    .sign(getSessionSecret());
+}
+
+/**
+ * Redeems an exchange code, returning the session user if the code is valid
+ * and unexpired, or null otherwise.
+ */
+export async function redeemExchangeCode(code: string): Promise<SessionUser | null> {
+  try {
+    const { payload } = await jwtVerify(code, getSessionSecret(), {
+      issuer: JWT_ISSUER,
+      audience: JWT_AUDIENCE,
+    });
+    if ((payload as Record<string, unknown>).type !== EXCHANGE_TYPE) return null;
+    const { userId, username, avatar, isElevated } = payload as JWTPayload & SessionUser & { type: string };
+    if (!userId || !username) return null;
+    return { userId, username, avatar: avatar ?? null, isElevated: isElevated ?? false };
+  } catch {
+    return null;
   }
-}
-
-/** Creates a one-time code that can be exchanged for the given JWT within 60 seconds. */
-export function createExchangeCode(jwt: string): string {
-  pruneExpiredCodes();
-  const code = randomUUID();
-  _exchangeCodes.set(code, { jwt, expiresAt: Date.now() + 60_000 });
-  return code;
-}
-
-/** Redeems a one-time code, returning the JWT or null if invalid/expired. Always deletes the code. */
-export function redeemExchangeCode(code: string): string | null {
-  const entry = _exchangeCodes.get(code);
-  _exchangeCodes.delete(code);
-  if (!entry || Date.now() > entry.expiresAt) return null;
-  return entry.jwt;
 }

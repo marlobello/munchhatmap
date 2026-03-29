@@ -9,7 +9,7 @@ import { randomUUID } from 'crypto';
  * and includes it in the OAuth URL. Verified in authCallback.
  */
 async function authLoginHandler(
-  _request: HttpRequest,
+  request: HttpRequest,
   context: InvocationContext,
 ): Promise<HttpResponseInit> {
   context.log('authLogin invoked');
@@ -24,12 +24,19 @@ async function authLoginHandler(
 
   const state = randomUUID();
 
+  // Use prompt=none by default so returning users skip the Discord permissions page.
+  // If Discord rejects prompt=none (first-time user with no existing authorization),
+  // authCallback detects the error and redirects back here with ?consent=1 so the
+  // full consent dialog is shown on the retry.
+  const forceConsent = request.query.get('consent') === '1';
+
   const params = new URLSearchParams({
     client_id: clientId,
     redirect_uri: redirectUri,
     response_type: 'code',
     scope: 'identify guilds.members.read',
     state,
+    prompt: forceConsent ? 'consent' : 'none',
   });
 
   return {

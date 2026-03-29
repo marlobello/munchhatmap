@@ -1,5 +1,5 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
-import { signToken, parseCookie, getGuildMemberInfo, getDiscordUser, createExchangeCode } from '../shared/auth.js';
+import { parseCookie, getGuildMemberInfo, getDiscordUser, createExchangeCode } from '../shared/auth.js';
 import { getAllowedOrigin } from '../shared/response.js';
 
 /**
@@ -10,12 +10,32 @@ import { getAllowedOrigin } from '../shared/response.js';
  * issues a one-time exchange code and redirects to the frontend. The frontend
  * exchanges the code for a JWT via /api/auth/exchange — keeping the full JWT out
  * of the URL and browser history.
+ *
+ * If Discord returns an error (e.g. prompt=none rejected for a first-time user),
+ * redirects back to the login endpoint with ?consent=1 so the consent page is shown.
  */
 async function authCallbackHandler(
   request: HttpRequest,
   context: InvocationContext,
 ): Promise<HttpResponseInit> {
   context.log('authCallback invoked');
+
+  const redirectUri = process.env.DISCORD_REDIRECT_URI;
+
+  // If Discord returned an error (e.g. access_denied when prompt=none is used for a
+  // new user who hasn't authorized yet), fall back to the consent-based login flow.
+  const discordError = request.query.get('error');
+  if (discordError) {
+    context.log('Discord returned error in callback, redirecting to consent login:', discordError);
+    const loginBase = redirectUri?.replace('/auth/callback', '/auth/login') ?? '/api/auth/login';
+    return {
+      status: 302,
+      headers: {
+        Location: `${loginBase}?consent=1`,
+        'Set-Cookie': 'oauth_state=; Path=/api/auth; HttpOnly; Secure; SameSite=Lax; Max-Age=0',
+      },
+    };
+  }
 
   const code = request.query.get('code');
   if (!code) {
@@ -33,7 +53,6 @@ async function authCallbackHandler(
 
   const clientId = process.env.DISCORD_CLIENT_ID;
   const clientSecret = process.env.DISCORD_CLIENT_SECRET;
-  const redirectUri = process.env.DISCORD_REDIRECT_URI;
   const frontendUrl = getAllowedOrigin();
 
   if (!clientId || !clientSecret || !redirectUri) {
@@ -77,16 +96,16 @@ async function authCallbackHandler(
     // Fetch Discord user profile
     const discordUser = await getDiscordUser(accessToken);
 
-    // Sign JWT and wrap in a short-lived one-time exchange code.
-    // The code (not the JWT itself) goes in the URL fragment — the frontend immediately
-    // exchanges it via /api/auth/exchange, keeping the full JWT out of browser history.
-    const sessionToken = await signToken({
+    // Issue a short-lived (60s) self-contained exchange code. The frontend immediately
+    // exchanges it via /api/auth/exchange for a full-length JWT, keeping the token out
+    // of browser history. Using a signed JWT as the exchange code means no server-side
+    // state is needed — it works correctly across Azure Function instances.
+    const exchangeCode = await createExchangeCode({
       userId: discordUser.id,
       username: discordUser.username,
       avatar: discordUser.avatar,
       isElevated,
     });
-    const exchangeCode = createExchangeCode(sessionToken);
 
     return {
       status: 302,

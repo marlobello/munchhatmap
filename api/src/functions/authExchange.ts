@@ -1,13 +1,13 @@
 import { app, HttpRequest, HttpResponseInit, InvocationContext } from '@azure/functions';
-import { redeemExchangeCode } from '../shared/auth.js';
+import { redeemExchangeCode, signToken } from '../shared/auth.js';
 import { jsonResponse, corsHeaders } from '../shared/response.js';
 
 /**
  * GET /api/auth/exchange?code=...
  *
  * Exchanges a one-time code (issued by authCallback) for a signed JWT.
- * Codes are valid for 60 seconds and destroyed on first use.
- * This keeps the full JWT out of browser history and URL bars.
+ * Codes are self-contained signed JWTs valid for 60 seconds, so this works
+ * correctly across Azure Function instances without any shared state.
  */
 async function authExchangeHandler(
   request: HttpRequest,
@@ -18,9 +18,10 @@ async function authExchangeHandler(
   const code = request.query.get('code');
   if (!code) return jsonResponse(400, { error: 'Missing code' });
 
-  const jwt = redeemExchangeCode(code);
-  if (!jwt) return jsonResponse(400, { error: 'Invalid or expired code' });
+  const user = await redeemExchangeCode(code);
+  if (!user) return jsonResponse(400, { error: 'Invalid or expired code' });
 
+  const jwt = await signToken(user);
   return {
     status: 200,
     headers: { 'Content-Type': 'application/json', ...corsHeaders() },
