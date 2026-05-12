@@ -15,7 +15,7 @@ param env string = 'prod'
 @description('Azure region for all resources')
 param location string = 'centralus'
 
-@description('Azure region for Azure OpenAI (requires eastus/eastus2/swedencentral for gpt-4o-mini)')
+@description('Azure region for Azure AI Services / Foundry (eastus for broadest model availability)')
 param openAiLocation string = 'eastus'
 
 @description('GitHub repository URL (e.g. https://github.com/OWNER/munchhatmap)')
@@ -115,8 +115,8 @@ module functions 'modules/functions.bicep' = {
   }
 }
 
-// ─── Step 5.5: Azure OpenAI ─────────────────────────────────────────────────
-// Deployed to eastus for model availability. Pay-per-token, no idle cost.
+// ─── Step 5.5: Azure AI Services (Foundry) ──────────────────────────────────
+// Upgraded from Azure OpenAI. Deployed to eastus for model availability.
 
 module openAi 'modules/openai.bicep' = {
   name: 'openAi'
