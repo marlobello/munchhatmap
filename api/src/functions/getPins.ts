@@ -3,6 +3,18 @@ import { getPins } from '../shared/db.js';
 import { generateSasUrl } from '../shared/blobSas.js';
 import { getSessionUser, unauthorizedResponse } from '../shared/auth.js';
 import { jsonResponse, corsHeaders } from '../shared/response.js';
+import { trackMetric } from '../shared/telemetry.js';
+
+const STORAGE_ACCOUNT_NAME = process.env.AZURE_STORAGE_ACCOUNT_NAME ?? '';
+
+/** True if the URL points to our private blob container but carries no SAS signature (a failed SAS sign). */
+function isUnsignedBlobUrl(url: string): boolean {
+  return (
+    STORAGE_ACCOUNT_NAME.length > 0 &&
+    url.includes(`${STORAGE_ACCOUNT_NAME}.blob.core.windows.net`) &&
+    !url.includes('sig=')
+  );
+}
 
 /**
  * GET /api/getPins
@@ -38,6 +50,13 @@ async function getPinsHandler(
         }
       }),
     );
+
+    // Emit an aggregate metric so a spike in SAS-signing failures (broken images) is alertable.
+    const sasFailures = pins.filter((p) => p.imageUrl && isUnsignedBlobUrl(p.imageUrl)).length;
+    trackMetric('PinsWithFailedSas', sasFailures, { totalPins: String(pins.length) });
+    if (sasFailures > 0) {
+      context.warn(`getPins: ${sasFailures}/${pins.length} blob images returned without a SAS token`);
+    }
 
     return {
       status: 200,

@@ -7,6 +7,12 @@ param tags object = {}
 param keyVaultUri string
 param allowedOrigin string = 'https://munchhatmap.dotheneedful.dev'
 
+@description('Application Insights connection string — enables Functions host telemetry and custom events')
+param appInsightsConnectionString string = ''
+
+@description('Log Analytics workspace resource ID for storage diagnostic settings')
+param logAnalyticsWorkspaceId string = ''
+
 // Azure resource endpoints — not secrets, passed as plain env vars
 param cosmosEndpoint string
 param openAiEndpoint string = ''
@@ -110,6 +116,36 @@ resource lifecyclePolicy 'Microsoft.Storage/storageAccounts/managementPolicies@2
   dependsOn: [cosmosBackupsContainer]
 }
 
+// Diagnostic settings: route blob storage access logs and transaction metrics to
+// Log Analytics so image read failures (403/404 on pin-images) are queryable in KQL.
+resource blobDiagnostics 'Microsoft.Insights/diagnosticSettings@2021-05-01-preview' = if (!empty(logAnalyticsWorkspaceId)) {
+  scope: blobService
+  name: 'blob-diagnostics'
+  properties: {
+    workspaceId: logAnalyticsWorkspaceId
+    logs: [
+      {
+        category: 'StorageRead'
+        enabled: true
+      }
+      {
+        category: 'StorageWrite'
+        enabled: true
+      }
+      {
+        category: 'StorageDelete'
+        enabled: true
+      }
+    ]
+    metrics: [
+      {
+        category: 'Transaction'
+        enabled: true
+      }
+    ]
+  }
+}
+
 resource hostingPlan 'Microsoft.Web/serverfarms@2023-12-01' = {
   name: '${name}-plan'
   location: location
@@ -162,6 +198,12 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
         {
           name: 'FUNCTIONS_WORKER_RUNTIME'
           value: 'node'
+        }
+        // Application Insights — enables host request/dependency tracking and backs
+        // the custom telemetry emitted by the API (api/src/shared/telemetry.ts).
+        {
+          name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
+          value: appInsightsConnectionString
         }
         {
           name: 'WEBSITE_NODE_DEFAULT_VERSION'

@@ -16,6 +16,7 @@ import {
   SASProtocol,
 } from '@azure/storage-blob';
 import { DefaultAzureCredential } from '@azure/identity';
+import { trackException } from './telemetry.js';
 
 const ACCOUNT_NAME = process.env.AZURE_STORAGE_ACCOUNT_NAME ?? '';
 const CONTAINER_NAME = process.env.IMAGE_STORAGE_CONTAINER ?? 'pin-images';
@@ -114,7 +115,10 @@ export async function generateSasUrl(blobUrl: string): Promise<string> {
 
     return `${blobUrl}?${sasParams.toString()}`;
   } catch (err) {
+    // A SAS failure means the browser receives the bare (private) blob URL and the
+    // image silently 403s. Surface it as an exception so it is alertable, not just a log line.
     console.error('[blobSas] Failed to generate SAS URL:', err instanceof Error ? err.message : err);
+    trackException(err, { component: 'blobSas', operation: 'generateSasUrl' });
     return blobUrl;
   }
 }

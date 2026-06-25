@@ -66,6 +66,20 @@ module logAnalytics 'modules/loganalytics.bicep' = {
   }
 }
 
+// ─── Step 2.5: Application Insights ─────────────────────────────────────────
+// Workspace-based, backed by the Log Analytics workspace above. Provides request,
+// dependency, exception, and custom event/metric telemetry for the Functions API.
+
+module appInsights 'modules/appinsights.bicep' = {
+  name: 'appInsights'
+  params: {
+    name: '${prefix}-api-${env}-ai'
+    location: location
+    tags: tags
+    logAnalyticsWorkspaceId: logAnalytics.outputs.workspaceId
+  }
+}
+
 // ─── Step 3: Cosmos DB ───────────────────────────────────────────────────────
 
 module cosmosDb 'modules/cosmosdb.bicep' = {
@@ -107,6 +121,8 @@ module functions 'modules/functions.bicep' = {
     cosmosEndpoint: cosmosDb.outputs.cosmosEndpoint
     openAiEndpoint: openAi.outputs.endpoint
     mapsClientId: maps.outputs.mapsClientId
+    appInsightsConnectionString: appInsights.outputs.connectionString
+    logAnalyticsWorkspaceId: logAnalytics.outputs.workspaceId
     allowedOrigin: 'https://${staticWebAppCustomDomain}'
     discordClientId: discordClientId
     discordGuildId: discordGuildId
@@ -195,6 +211,7 @@ module staticWebApp 'modules/staticwebapp.bicep' = {
 
 output staticWebAppHostname string = staticWebApp.outputs.staticWebAppHostname
 output functionAppHostname string = functions.outputs.functionAppHostname
+output appInsightsConnectionString string = appInsights.outputs.connectionString
 output keyVaultName string = keyVault.outputs.keyVaultName
 output cosmosEndpoint string = cosmosDb.outputs.cosmosEndpoint
 output openAiEndpoint string = openAi.outputs.endpoint

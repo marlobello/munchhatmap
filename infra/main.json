@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.41.2.15936",
-      "templateHash": "1132739175402731165"
+      "templateHash": "3135109110560197295"
     }
   },
   "parameters": {
@@ -27,7 +27,7 @@
       "type": "string",
       "defaultValue": "eastus",
       "metadata": {
-        "description": "Azure region for Azure OpenAI (requires eastus/eastus2/swedencentral for gpt-4o-mini)"
+        "description": "Azure region for Azure AI Services / Foundry (eastus for broadest model availability)"
       }
     },
     "repositoryUrl": {
@@ -253,6 +253,94 @@
     {
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2025-04-01",
+      "name": "appInsights",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "name": {
+            "value": "[format('{0}-api-{1}-ai', variables('prefix'), parameters('env'))]"
+          },
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "tags": {
+            "value": "[variables('tags')]"
+          },
+          "logAnalyticsWorkspaceId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'logAnalytics'), '2025-04-01').outputs.workspaceId.value]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.41.2.15936",
+              "templateHash": "4558139484455084064"
+            }
+          },
+          "parameters": {
+            "name": {
+              "type": "string"
+            },
+            "location": {
+              "type": "string"
+            },
+            "tags": {
+              "type": "object",
+              "defaultValue": {}
+            },
+            "logAnalyticsWorkspaceId": {
+              "type": "string",
+              "metadata": {
+                "description": "Resource ID of the Log Analytics workspace to back this component"
+              }
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Insights/components",
+              "apiVersion": "2020-02-02",
+              "name": "[parameters('name')]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "kind": "web",
+              "properties": {
+                "Application_Type": "web",
+                "WorkspaceResourceId": "[parameters('logAnalyticsWorkspaceId')]",
+                "IngestionMode": "LogAnalytics",
+                "publicNetworkAccessForIngestion": "Enabled",
+                "publicNetworkAccessForQuery": "Enabled"
+              }
+            }
+          ],
+          "outputs": {
+            "id": {
+              "type": "string",
+              "value": "[resourceId('Microsoft.Insights/components', parameters('name'))]"
+            },
+            "name": {
+              "type": "string",
+              "value": "[parameters('name')]"
+            },
+            "connectionString": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.Insights/components', parameters('name')), '2020-02-02').ConnectionString]"
+            }
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', 'logAnalytics')]"
+      ]
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
       "name": "cosmosDb",
       "properties": {
         "expressionEvaluationOptions": {
@@ -277,7 +365,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.41.2.15936",
-              "templateHash": "1218517561147820758"
+              "templateHash": "7162562275116304324"
             }
           },
           "parameters": {
@@ -318,7 +406,7 @@
                   "type": "Periodic",
                   "periodicModeProperties": {
                     "backupIntervalInMinutes": 1440,
-                    "backupRetentionIntervalInHours": 48,
+                    "backupRetentionIntervalInHours": 168,
                     "backupStorageRedundancy": "Local"
                   }
                 },
@@ -383,10 +471,6 @@
             "cosmosEndpoint": {
               "type": "string",
               "value": "[reference(resourceId('Microsoft.DocumentDB/databaseAccounts', parameters('name')), '2024-05-15').documentEndpoint]"
-            },
-            "cosmosPrimaryKey": {
-              "type": "string",
-              "value": "[listKeys(resourceId('Microsoft.DocumentDB/databaseAccounts', parameters('name')), '2024-05-15').primaryMasterKey]"
             }
           }
         }
@@ -425,7 +509,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.41.2.15936",
-              "templateHash": "12777789701907434455"
+              "templateHash": "9056952057174338512"
             }
           },
           "parameters": {
@@ -550,6 +634,18 @@
               "dependsOn": [
                 "[resourceId('Microsoft.KeyVault/vaults', parameters('name'))]"
               ]
+            },
+            {
+              "condition": "[parameters('seedSecrets')]",
+              "type": "Microsoft.KeyVault/vaults/secrets",
+              "apiVersion": "2023-07-01",
+              "name": "[format('{0}/{1}', parameters('name'), 'azure-maps-key')]",
+              "properties": {
+                "value": "PLACEHOLDER"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.KeyVault/vaults', parameters('name'))]"
+              ]
             }
           ],
           "outputs": {
@@ -602,6 +698,15 @@
           "openAiEndpoint": {
             "value": "[reference(resourceId('Microsoft.Resources/deployments', 'openAi'), '2025-04-01').outputs.endpoint.value]"
           },
+          "mapsClientId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'maps'), '2025-04-01').outputs.mapsClientId.value]"
+          },
+          "appInsightsConnectionString": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'appInsights'), '2025-04-01').outputs.connectionString.value]"
+          },
+          "logAnalyticsWorkspaceId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'logAnalytics'), '2025-04-01').outputs.workspaceId.value]"
+          },
           "allowedOrigin": {
             "value": "[format('https://{0}', parameters('staticWebAppCustomDomain'))]"
           },
@@ -625,7 +730,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.41.2.15936",
-              "templateHash": "8078359091230673032"
+              "templateHash": "7394541293678584688"
             }
           },
           "parameters": {
@@ -646,6 +751,20 @@
               "type": "string",
               "defaultValue": "https://munchhatmap.dotheneedful.dev"
             },
+            "appInsightsConnectionString": {
+              "type": "string",
+              "defaultValue": "",
+              "metadata": {
+                "description": "Application Insights connection string — enables Functions host telemetry and custom events"
+              }
+            },
+            "logAnalyticsWorkspaceId": {
+              "type": "string",
+              "defaultValue": "",
+              "metadata": {
+                "description": "Log Analytics workspace resource ID for storage diagnostic settings"
+              }
+            },
             "cosmosEndpoint": {
               "type": "string"
             },
@@ -656,6 +775,10 @@
             "openAiDeployment": {
               "type": "string",
               "defaultValue": "gpt-4.1"
+            },
+            "mapsClientId": {
+              "type": "string",
+              "defaultValue": ""
             },
             "discordClientId": {
               "type": "string"
@@ -695,14 +818,112 @@
               }
             },
             {
+              "type": "Microsoft.Storage/storageAccounts/blobServices",
+              "apiVersion": "2023-05-01",
+              "name": "[format('{0}/{1}', format('{0}sa', replace(parameters('name'), '-', '')), 'default')]",
+              "properties": {
+                "deleteRetentionPolicy": {
+                  "enabled": true,
+                  "days": 14
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', format('{0}sa', replace(parameters('name'), '-', '')))]"
+              ]
+            },
+            {
               "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
               "apiVersion": "2023-05-01",
-              "name": "[format('{0}/default/pin-images', format('{0}sa', replace(parameters('name'), '-', '')))]",
+              "name": "[format('{0}/{1}/{2}', format('{0}sa', replace(parameters('name'), '-', '')), 'default', 'pin-images')]",
               "properties": {
                 "publicAccess": "None"
               },
               "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', format('{0}sa', replace(parameters('name'), '-', '')), 'default')]"
+              ]
+            },
+            {
+              "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+              "apiVersion": "2023-05-01",
+              "name": "[format('{0}/{1}/{2}', format('{0}sa', replace(parameters('name'), '-', '')), 'default', 'cosmos-backups')]",
+              "properties": {
+                "publicAccess": "None"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', format('{0}sa', replace(parameters('name'), '-', '')), 'default')]"
+              ]
+            },
+            {
+              "type": "Microsoft.Storage/storageAccounts/managementPolicies",
+              "apiVersion": "2023-05-01",
+              "name": "[format('{0}/{1}', format('{0}sa', replace(parameters('name'), '-', '')), 'default')]",
+              "properties": {
+                "policy": {
+                  "rules": [
+                    {
+                      "name": "cosmos-backups-lifecycle",
+                      "enabled": true,
+                      "type": "Lifecycle",
+                      "definition": {
+                        "actions": {
+                          "baseBlob": {
+                            "tierToCool": {
+                              "daysAfterModificationGreaterThan": 0
+                            },
+                            "delete": {
+                              "daysAfterModificationGreaterThan": 90
+                            }
+                          }
+                        },
+                        "filters": {
+                          "blobTypes": [
+                            "blockBlob"
+                          ],
+                          "prefixMatch": [
+                            "cosmos-backups/"
+                          ]
+                        }
+                      }
+                    }
+                  ]
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts/blobServices/containers', format('{0}sa', replace(parameters('name'), '-', '')), 'default', 'cosmos-backups')]",
                 "[resourceId('Microsoft.Storage/storageAccounts', format('{0}sa', replace(parameters('name'), '-', '')))]"
+              ]
+            },
+            {
+              "condition": "[not(empty(parameters('logAnalyticsWorkspaceId')))]",
+              "type": "Microsoft.Insights/diagnosticSettings",
+              "apiVersion": "2021-05-01-preview",
+              "scope": "[resourceId('Microsoft.Storage/storageAccounts/blobServices', format('{0}sa', replace(parameters('name'), '-', '')), 'default')]",
+              "name": "blob-diagnostics",
+              "properties": {
+                "workspaceId": "[parameters('logAnalyticsWorkspaceId')]",
+                "logs": [
+                  {
+                    "category": "StorageRead",
+                    "enabled": true
+                  },
+                  {
+                    "category": "StorageWrite",
+                    "enabled": true
+                  },
+                  {
+                    "category": "StorageDelete",
+                    "enabled": true
+                  }
+                ],
+                "metrics": [
+                  {
+                    "category": "Transaction",
+                    "enabled": true
+                  }
+                ]
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts/blobServices', format('{0}sa', replace(parameters('name'), '-', '')), 'default')]"
               ]
             },
             {
@@ -736,7 +957,7 @@
                 "httpsOnly": true,
                 "keyVaultReferenceIdentity": "[parameters('functionIdentityId')]",
                 "siteConfig": {
-                  "nodeVersion": "~20",
+                  "nodeVersion": "~22",
                   "appSettings": [
                     {
                       "name": "AzureWebJobsStorage",
@@ -759,8 +980,12 @@
                       "value": "node"
                     },
                     {
+                      "name": "APPLICATIONINSIGHTS_CONNECTION_STRING",
+                      "value": "[parameters('appInsightsConnectionString')]"
+                    },
+                    {
                       "name": "WEBSITE_NODE_DEFAULT_VERSION",
-                      "value": "~20"
+                      "value": "~22"
                     },
                     {
                       "name": "COSMOS_DB_ENDPOINT",
@@ -807,6 +1032,10 @@
                       "value": "[parameters('openAiDeployment')]"
                     },
                     {
+                      "name": "AZURE_MAPS_CLIENT_ID",
+                      "value": "[parameters('mapsClientId')]"
+                    },
+                    {
                       "name": "DISCORD_CLIENT_SECRET",
                       "value": "[format('@Microsoft.KeyVault(SecretUri={0}secrets/discord-oauth-client-secret/)', parameters('keyVaultUri'))]"
                     },
@@ -850,9 +1079,12 @@
         }
       },
       "dependsOn": [
+        "[resourceId('Microsoft.Resources/deployments', 'appInsights')]",
         "[resourceId('Microsoft.Resources/deployments', 'cosmosDb')]",
         "[resourceId('Microsoft.Resources/deployments', 'identities')]",
         "[resourceId('Microsoft.Resources/deployments', 'keyVault')]",
+        "[resourceId('Microsoft.Resources/deployments', 'logAnalytics')]",
+        "[resourceId('Microsoft.Resources/deployments', 'maps')]",
         "[resourceId('Microsoft.Resources/deployments', 'openAi')]"
       ]
     },
@@ -883,7 +1115,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.41.2.15936",
-              "templateHash": "16272376117015858932"
+              "templateHash": "9417213698043707769"
             }
           },
           "parameters": {
@@ -902,11 +1134,11 @@
           "resources": [
             {
               "type": "Microsoft.CognitiveServices/accounts",
-              "apiVersion": "2023-05-01",
+              "apiVersion": "2025-06-01",
               "name": "[parameters('name')]",
               "location": "[parameters('location')]",
               "tags": "[parameters('tags')]",
-              "kind": "OpenAI",
+              "kind": "AIServices",
               "sku": {
                 "name": "S0"
               },
@@ -917,7 +1149,7 @@
             },
             {
               "type": "Microsoft.CognitiveServices/accounts/deployments",
-              "apiVersion": "2023-05-01",
+              "apiVersion": "2025-06-01",
               "name": "[format('{0}/{1}', parameters('name'), 'gpt-4.1')]",
               "sku": {
                 "name": "GlobalStandard",
@@ -933,16 +1165,128 @@
               "dependsOn": [
                 "[resourceId('Microsoft.CognitiveServices/accounts', parameters('name'))]"
               ]
+            },
+            {
+              "type": "Microsoft.CognitiveServices/accounts/deployments",
+              "apiVersion": "2025-06-01",
+              "name": "[format('{0}/{1}', parameters('name'), 'gpt-4o-mini')]",
+              "sku": {
+                "name": "Standard",
+                "capacity": 10
+              },
+              "properties": {
+                "model": {
+                  "format": "OpenAI",
+                  "name": "gpt-4.1-mini",
+                  "version": "2025-04-14"
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.CognitiveServices/accounts/deployments', parameters('name'), 'gpt-4.1')]",
+                "[resourceId('Microsoft.CognitiveServices/accounts', parameters('name'))]"
+              ]
+            },
+            {
+              "type": "Microsoft.CognitiveServices/accounts/deployments",
+              "apiVersion": "2025-06-01",
+              "name": "[format('{0}/{1}', parameters('name'), 'gpt-5-mini')]",
+              "sku": {
+                "name": "GlobalStandard",
+                "capacity": 10
+              },
+              "properties": {
+                "model": {
+                  "format": "OpenAI",
+                  "name": "gpt-5-mini",
+                  "version": "2025-08-07"
+                }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.CognitiveServices/accounts/deployments', parameters('name'), 'gpt-4o-mini')]",
+                "[resourceId('Microsoft.CognitiveServices/accounts', parameters('name'))]"
+              ]
             }
           ],
           "outputs": {
             "endpoint": {
               "type": "string",
-              "value": "[reference(resourceId('Microsoft.CognitiveServices/accounts', parameters('name')), '2023-05-01').endpoint]"
+              "value": "[reference(resourceId('Microsoft.CognitiveServices/accounts', parameters('name')), '2025-06-01').endpoint]"
             },
             "accountName": {
               "type": "string",
               "value": "[parameters('name')]"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "maps",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "name": {
+            "value": "[format('{0}-maps-{1}', variables('prefix'), parameters('env'))]"
+          },
+          "location": {
+            "value": "[parameters('openAiLocation')]"
+          },
+          "tags": {
+            "value": "[variables('tags')]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.41.2.15936",
+              "templateHash": "10248537426984641079"
+            }
+          },
+          "parameters": {
+            "name": {
+              "type": "string"
+            },
+            "location": {
+              "type": "string",
+              "defaultValue": "eastus"
+            },
+            "tags": {
+              "type": "object",
+              "defaultValue": {}
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Maps/accounts",
+              "apiVersion": "2023-06-01",
+              "name": "[parameters('name')]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "sku": {
+                "name": "G2"
+              },
+              "kind": "Gen2",
+              "properties": {
+                "disableLocalAuth": true
+              }
+            }
+          ],
+          "outputs": {
+            "mapsAccountName": {
+              "type": "string",
+              "value": "[parameters('name')]"
+            },
+            "mapsClientId": {
+              "type": "string",
+              "value": "[reference(resourceId('Microsoft.Maps/accounts', parameters('name')), '2023-06-01').uniqueId]"
             }
           }
         }
@@ -990,6 +1334,9 @@
           },
           "openAiEndpoint": {
             "value": "[reference(resourceId('Microsoft.Resources/deployments', 'openAi'), '2025-04-01').outputs.endpoint.value]"
+          },
+          "mapsClientId": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'maps'), '2025-04-01').outputs.mapsClientId.value]"
           }
         },
         "template": {
@@ -999,7 +1346,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.41.2.15936",
-              "templateHash": "14232213738438318185"
+              "templateHash": "12555632990180753486"
             }
           },
           "parameters": {
@@ -1034,6 +1381,10 @@
             },
             "openAiEndpoint": {
               "type": "string"
+            },
+            "mapsClientId": {
+              "type": "string",
+              "defaultValue": ""
             },
             "storageAccountName": {
               "type": "string"
@@ -1122,6 +1473,10 @@
                           "value": "gpt-4.1"
                         },
                         {
+                          "name": "AZURE_MAPS_CLIENT_ID",
+                          "value": "[parameters('mapsClientId')]"
+                        },
+                        {
                           "name": "AZURE_STORAGE_ACCOUNT_NAME",
                           "value": "[parameters('storageAccountName')]"
                         },
@@ -1161,6 +1516,7 @@
         "[resourceId('Microsoft.Resources/deployments', 'identities')]",
         "[resourceId('Microsoft.Resources/deployments', 'keyVault')]",
         "[resourceId('Microsoft.Resources/deployments', 'logAnalytics')]",
+        "[resourceId('Microsoft.Resources/deployments', 'maps')]",
         "[resourceId('Microsoft.Resources/deployments', 'openAi')]"
       ]
     },
@@ -1179,6 +1535,9 @@
           },
           "openAiAccountName": {
             "value": "[reference(resourceId('Microsoft.Resources/deployments', 'openAi'), '2025-04-01').outputs.accountName.value]"
+          },
+          "mapsAccountName": {
+            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'maps'), '2025-04-01').outputs.mapsAccountName.value]"
           },
           "storageAccountName": {
             "value": "[reference(resourceId('Microsoft.Resources/deployments', 'functions'), '2025-04-01').outputs.storageAccountName.value]"
@@ -1200,7 +1559,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.41.2.15936",
-              "templateHash": "13344450514501454948"
+              "templateHash": "11566606079094747238"
             }
           },
           "parameters": {
@@ -1208,6 +1567,9 @@
               "type": "string"
             },
             "openAiAccountName": {
+              "type": "string"
+            },
+            "mapsAccountName": {
               "type": "string"
             },
             "storageAccountName": {
@@ -1226,6 +1588,7 @@
           "variables": {
             "cosmosContributorRoleId": "00000000-0000-0000-0000-000000000002",
             "cognitiveServicesOpenAiUserRole": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '5e0bd9bd-7b93-4f28-af87-19fc36ad61bd')]",
+            "azureMapsDataReaderRole": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '423170ca-a8f6-4b0f-8487-9e4eb8f49bfa')]",
             "storageBlobDataContributorRole": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'ba92f5b4-2d11-453d-a403-e96b0029c9fe')]",
             "storageBlobDataReaderRole": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '2a2b9908-6ea1-4ae2-8e65-a410df84e7d1')]",
             "storageBlobDelegatorRole": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'db58b8e5-c6ad-4a2a-8342-4190687cbf4a')]",
@@ -1270,6 +1633,28 @@
               "name": "a2f14c3e-8b62-4d9e-a7f0-5c3e1b8d9a24",
               "properties": {
                 "roleDefinitionId": "[variables('cognitiveServicesOpenAiUserRole')]",
+                "principalId": "[parameters('functionPrincipalId')]",
+                "principalType": "ServicePrincipal"
+              }
+            },
+            {
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "scope": "[resourceId('Microsoft.Maps/accounts', parameters('mapsAccountName'))]",
+              "name": "[guid(resourceId('Microsoft.Maps/accounts', parameters('mapsAccountName')), parameters('botPrincipalId'), variables('azureMapsDataReaderRole'))]",
+              "properties": {
+                "roleDefinitionId": "[variables('azureMapsDataReaderRole')]",
+                "principalId": "[parameters('botPrincipalId')]",
+                "principalType": "ServicePrincipal"
+              }
+            },
+            {
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "scope": "[resourceId('Microsoft.Maps/accounts', parameters('mapsAccountName'))]",
+              "name": "[guid(resourceId('Microsoft.Maps/accounts', parameters('mapsAccountName')), parameters('functionPrincipalId'), variables('azureMapsDataReaderRole'))]",
+              "properties": {
+                "roleDefinitionId": "[variables('azureMapsDataReaderRole')]",
                 "principalId": "[parameters('functionPrincipalId')]",
                 "principalType": "ServicePrincipal"
               }
@@ -1337,6 +1722,7 @@
         "[resourceId('Microsoft.Resources/deployments', 'functions')]",
         "[resourceId('Microsoft.Resources/deployments', 'identities')]",
         "[resourceId('Microsoft.Resources/deployments', 'keyVault')]",
+        "[resourceId('Microsoft.Resources/deployments', 'maps')]",
         "[resourceId('Microsoft.Resources/deployments', 'openAi')]"
       ]
     },
@@ -1461,6 +1847,10 @@
       "type": "string",
       "value": "[reference(resourceId('Microsoft.Resources/deployments', 'functions'), '2025-04-01').outputs.functionAppHostname.value]"
     },
+    "appInsightsConnectionString": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'appInsights'), '2025-04-01').outputs.connectionString.value]"
+    },
     "keyVaultName": {
       "type": "string",
       "value": "[reference(resourceId('Microsoft.Resources/deployments', 'keyVault'), '2025-04-01').outputs.keyVaultName.value]"
@@ -1472,6 +1862,10 @@
     "openAiEndpoint": {
       "type": "string",
       "value": "[reference(resourceId('Microsoft.Resources/deployments', 'openAi'), '2025-04-01').outputs.endpoint.value]"
+    },
+    "mapsClientId": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'maps'), '2025-04-01').outputs.mapsClientId.value]"
     },
     "staticWebAppDeploymentToken": {
       "type": "string",

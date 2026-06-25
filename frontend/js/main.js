@@ -63,6 +63,30 @@ async function authedFetch(url, options = {}) {
   });
 }
 
+/**
+ * Reports a client-side error (e.g. a failed image load) to the API so it surfaces
+ * in Application Insights. The SAS query string is stripped before sending so no
+ * signed token leaves the browser. Best-effort: failures are swallowed.
+ * @param {{type: string, url?: string, message?: string}} detail
+ */
+function reportClientError(detail) {
+  try {
+    const payload = {
+      type: detail.type,
+      message: detail.message,
+      url: detail.url ? detail.url.split('?')[0] : undefined,
+    };
+    authedFetch(`${API_BASE}/clientError`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      keepalive: true,
+    }).catch(() => {});
+  } catch {
+    // never let telemetry break the page
+  }
+}
+
 /** Checks session status. Returns user object if authed, null otherwise. */
 async function checkAuth() {
   const token = localStorage.getItem(TOKEN_KEY);
@@ -119,7 +143,7 @@ checkAuth().then((user) => {
   authedFetch(`${API_BASE}/getPins`)
     .then((r) => { if (!r.ok) throw new Error(`${r.status}`); return r.json(); })
     .then((allPins) => {
-      setupMapHandlers(map);
+      setupMapHandlers(map, reportClientError);
 
       // Build sorted unique user list from pin data
       const userMap = new Map(); // userId → username

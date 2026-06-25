@@ -366,8 +366,10 @@ function buildMarker(pin, user, authedFetch, apiBase, cluster) {
  * Call this once after the map is created — NOT inside renderPins, which may
  * be called multiple times when the user filter changes.
  * @param {L.Map} map
+ * @param {(detail: {type: string, url?: string, message?: string}) => void} [reportError]
+ *   Optional callback to report client-side errors (e.g. failed image loads) to the API.
  */
-export function setupMapHandlers(map) {
+export function setupMapHandlers(map, reportError) {
   map.on('popupopen', (e) => {
     const el = e.popup.getElement();
     if (!el) return;
@@ -379,6 +381,9 @@ export function setupMapHandlers(map) {
       img.style.display = 'none';
       errorDiv.style.display = '';
       if (discordLinkDiv) discordLinkDiv.style.display = 'none';
+      if (typeof reportError === 'function') {
+        reportError({ type: 'image_error', url: img.src, message: 'Pin image failed to load' });
+      }
     }, { once: true });
   });
 }
