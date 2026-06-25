@@ -36,7 +36,7 @@ resource storageAccount 'Microsoft.Storage/storageAccounts@2023-05-01' = {
   location: location
   tags: tags
   sku: {
-    name: 'Standard_LRS' // Cheapest redundancy option
+    name: 'Standard_GRS' // Geo-redundant: async replication to the Azure paired region for DR
   }
   kind: 'StorageV2'
   properties: {
@@ -58,10 +58,40 @@ resource blobService 'Microsoft.Storage/storageAccounts/blobServices@2023-05-01'
   parent: storageAccount
   name: 'default'
   properties: {
+    // Blob soft delete — recover individual deleted/overwritten blobs for 2 weeks.
     deleteRetentionPolicy: {
       enabled: true
-      days: 14 // Restore accidentally deleted blobs for up to 2 weeks (write-once images = near-zero cost)
+      days: 14 // write-once images = near-zero cost
     }
+    // Container soft delete — recover an accidentally deleted container.
+    containerDeleteRetentionPolicy: {
+      enabled: true
+      days: 14
+    }
+    // Versioning — preserve prior versions of overwritten blobs (also required for PITR).
+    isVersioningEnabled: true
+    // Change feed — ordered transaction log of blob changes (required for point-in-time restore).
+    changeFeed: {
+      enabled: true
+    }
+    // Point-in-time restore — roll block blobs back to an earlier state.
+    // Must be strictly less than the blob soft-delete retention (14 days).
+    restorePolicy: {
+      enabled: true
+      days: 13
+    }
+  }
+}
+
+// Prevent accidental deletion of the storage account — it holds both the live pin
+// images and the Cosmos DB backups. CannotDelete still permits data-plane operations
+// and key listing (listKeys), so the Functions runtime and SAS generation are unaffected.
+resource storageDeleteLock 'Microsoft.Authorization/locks@2020-05-01' = {
+  scope: storageAccount
+  name: 'do-not-delete'
+  properties: {
+    level: 'CanNotDelete'
+    notes: 'Holds pin images and Cosmos backups (BCDR). Remove only for intentional decommissioning.'
   }
 }
 

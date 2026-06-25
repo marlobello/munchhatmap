@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.41.2.15936",
-      "templateHash": "3135109110560197295"
+      "templateHash": "12198121799022192951"
     }
   },
   "parameters": {
@@ -730,7 +730,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.41.2.15936",
-              "templateHash": "7394541293678584688"
+              "templateHash": "1783068870285154161"
             }
           },
           "parameters": {
@@ -808,7 +808,7 @@
               "location": "[parameters('location')]",
               "tags": "[parameters('tags')]",
               "sku": {
-                "name": "Standard_LRS"
+                "name": "Standard_GRS"
               },
               "kind": "StorageV2",
               "properties": {
@@ -825,7 +825,32 @@
                 "deleteRetentionPolicy": {
                   "enabled": true,
                   "days": 14
+                },
+                "containerDeleteRetentionPolicy": {
+                  "enabled": true,
+                  "days": 14
+                },
+                "isVersioningEnabled": true,
+                "changeFeed": {
+                  "enabled": true
+                },
+                "restorePolicy": {
+                  "enabled": true,
+                  "days": 13
                 }
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Storage/storageAccounts', format('{0}sa', replace(parameters('name'), '-', '')))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Authorization/locks",
+              "apiVersion": "2020-05-01",
+              "scope": "[resourceId('Microsoft.Storage/storageAccounts', format('{0}sa', replace(parameters('name'), '-', '')))]",
+              "name": "do-not-delete",
+              "properties": {
+                "level": "CanNotDelete",
+                "notes": "Holds pin images and Cosmos backups (BCDR). Remove only for intentional decommissioning."
               },
               "dependsOn": [
                 "[resourceId('Microsoft.Storage/storageAccounts', format('{0}sa', replace(parameters('name'), '-', '')))]"
